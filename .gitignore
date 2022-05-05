@@ -1,0 +1,9 @@
+# Configuration
+config/
+env/
+
+# Archive
+bin/
+
+# Others
+**/__pycache__
