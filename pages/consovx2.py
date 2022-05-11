@@ -6,7 +6,7 @@
 from config import wms2
 import pandas as pd
 import datetime as dt
-from dash import dcc, html, Input, Output, callback
+from dash import dcc, html, Input, Output, callback, Dash
 import plotly.graph_objs as go
 
 # Définition de la requête SQL
@@ -38,27 +38,27 @@ conso_vx2 = """
 
 # Définition de l'affichage et intervalle de refresh
 layout = html.Div([
-    html.Div(id='live-update-datetime', style = {'color' : '#ECECEC', 'text-align' : 'center', 'font-size' : 28}),
+    html.Div(id='datetime-consovx2', style = {'color' : '#ECECEC', 'text-align' : 'center', 'font-size' : 28}),
     html.Hr(),
     html.Div([
-            dcc.Interval(id='interval',
+            dcc.Interval(id='interval-consovx2',
                          interval=30000, # milliseconds
                          n_intervals=0
                          ),
-            dcc.Graph(id='Andon')
+            dcc.Graph(id='Andon-consovx2')
             ])
                         ], style={  'backgroundColor' : '#000000'})
 
 # Refresh automatique date
-@callback(Output('live-update-datetime', 'children'),
-              [Input('interval', 'n_intervals')])
+@callback(Output('datetime-consovx2', 'children'),
+              [Input('interval-consovx2', 'n_intervals')])
 def update_time(n):
     refresh_time = dt.datetime.now().strftime("%d-%m-%Y %H:%M:%S")
     return '{}'.format(refresh_time)
 
 # Refresh écran Andon
-@callback(Output('Andon', 'figure'),
-              [Input('interval', 'n_intervals')])
+@callback(Output('Andon-consovx2', 'figure'),
+              [Input('interval-consovx2', 'n_intervals')])
 def update_layout(n):
     # Connection BD
     conn = wms2.connect()

@@ -4,9 +4,10 @@
 
 from dash import Dash, dcc, html, Input, Output, callback
 # Liste des pages à afficher
-from pages import consovx2
+from pages import consovx2, packsize
 
-app = Dash(__name__)
+app = Dash(__name__, suppress_callback_exceptions=True)
+app.title = 'Andons DC Lyon'
 server = app.server
 
 app.layout = html.Div([
@@ -20,6 +21,8 @@ app.layout = html.Div([
 def display_page(pathname):
     if pathname == '/consovx2':
         return consovx2.layout
+    elif pathname == '/packsize':
+        return packsize.layout
     else:
         return '404'
 
