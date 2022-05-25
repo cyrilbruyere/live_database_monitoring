@@ -4,7 +4,7 @@
 
 from dash import Dash, dcc, html, Input, Output, callback
 # Liste des pages à afficher
-from pages import consovx2, packsize
+from pages import consovx2, packsize, outlinesvx2
 
 app = Dash(__name__, suppress_callback_exceptions=True)
 app.title = 'Andons DC Lyon'
@@ -23,6 +23,8 @@ def display_page(pathname):
         return consovx2.layout
     elif pathname == '/packsize':
         return packsize.layout
+    elif pathname == '/outlinesvx2':
+        return outlinesvx2.layout
     else:
         return '404'
 

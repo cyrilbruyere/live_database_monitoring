@@ -154,7 +154,7 @@ def update_layout(n):
         andon = andon[andon['TYPE']=='S']
     # Calcul du retard
     andon['TIME_dt'] = pd.to_datetime(andon['TIME'], format = '%H%M').dt.time
-    andon['CUTOFF'] = pd.to_datetime(andon['CUTOFF'], format = '%H%M').dt.time
+    andon['CUTOFF_dt'] = pd.to_datetime(andon['CUTOFF'], format = '%H%M').dt.time
     andon['Total'] = andon[['HOLD', 'RELEASED', 'ENCOURS', 'Colis WS', 'Colis WT']].sum(axis = 1)
     # Définition fond rouge si palette en retard, orange s'il reste 15 minutes :
     present = dt.datetime.now()
@@ -170,12 +170,12 @@ def update_layout(n):
     andon['D_color'] = andon['TYPE'].apply(lambda x: '#0080FF' if x == 'D' else '#000000')
     # Définition fond vert lorsque les palettes sont prêtes et que l'heure de cutoff est passée
     andon['CUTOFF_color'] = '#000000'
-    andon.loc[(andon['PLDC']>0)&(andon['Total']==0)&(andon['TYPE']=='D')&(andon['CUTOFF'] < present.time()),'CUTOFF_color'] = '#008000'
-    andon = andon.replace(to_replace = [0], value = [''])
+    andon.loc[(andon['PLDC']>0)&(andon['Total']==0)&(andon['TYPE']=='D')&(andon['CUTOFF_dt'] < present.time()),'CUTOFF_color'] = '#008000'
+    andon = andon.replace(to_replace = [0, '0000'], value = ['', ''])
     # Listes à afficher
-    time = andon['TIME'].values
+    cutoff = andon['CUTOFF']
     destination = andon['DESTINATION'].values
-    type = andon['TYPE'].values
+    quai = andon['TIME'].values
     hold = andon['HOLD'].values
     released = andon['RELEASED'].values
     encours = andon['ENCOURS'].values
@@ -187,15 +187,13 @@ def update_layout(n):
     couleur_day = andon['D_color'].values
     couleur_cutoff = andon['CUTOFF_color'].values
     # Colonnes à afficher
-    shown_columns = ['TIME', 'DESTINATION', 'TYPE', 'HOLD', 'RELEASED', 'ENCOURS', 'Colis WS', 'Colis WT', 'PLDC', 'Colis PLDC']
+    shown_columns = ['CUTOFF', 'DESTINATION', 'TIME', 'HOLD', 'RELEASED', 'ENCOURS', 'Colis WS', 'Colis WT', 'PLDC', 'Colis PLDC']
     # Application des couleurs définies
     fill_color = []
     n = len(andon)
     for col in shown_columns:
-        if col in ['TIME', 'DESTINATION']:
+        if col in ['DESTINATION', 'TIME']:
             fill_color.append(couleur_retard)
-        elif col in ['TYPE']:
-            fill_color.append(couleur_day)
         elif col in ['PLDC']:
             fill_color.append(couleur_cutoff)
         else:
@@ -208,13 +206,13 @@ def update_layout(n):
     # Définition du visuel à afficher (figure)
     trace = go.Table(
                     columnwidth = [.8, 1.7, .75, .75, .75, .75, .75, .75, .75, .75],
-                    header = dict(  values = ['Heure', 'Destination', 'Type', 'HOLD', 'RELEASED', 'ENCOURS', 'Colis WS', 'Colis WT', 'PLDC', 'Colis PLDC'],
+                    header = dict(  values = ['CutOFF', 'Destination', 'Quai', 'HOLD', 'RELEASED', 'ENCOURS', 'Colis WS', 'Colis WT', 'PLDC', 'Colis PLDC'],
                                     fill = dict(color='#000000'),
                                     line = dict(color='#777777', width=1),
                                     font = dict(color = '#ECECEC', size = 24),
                                     align = ['center'],
                                     height = 40),
-                    cells = dict(   values = [time, destination, type, hold, released, encours, colis_ws, colis_wt, palette, colis_emballes],
+                    cells = dict(   values = [cutoff, destination, quai, hold, released, encours, colis_ws, colis_wt, palette, colis_emballes],
                                     fill = dict(color=fill_color), # '#000000'
                                     line = dict(color='#777777', width=1),
                                     font = dict(color = '#ECECEC', size = 32), # [couleur_retard], 
