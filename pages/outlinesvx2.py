@@ -11,20 +11,12 @@ import plotly.graph_objs as go
 
 # Définition de la requête SQL
 query = """
-SELECT mt.TASK_ID,
+SELECT mt.WORK_GROUP,
        mt.STATUS,
-       mt.WORK_GROUP,
-       mt.CONSIGNMENT,
        SUBSTR(mt.CONSIGNMENT, 0, 4) as CONSIGNMENT_TIME,
        mt.PRINT_LABEL_ID,
        mt.WORK_ZONE,
        oh.SHIP_BY_DATE,
-       ol.LINE_ID,
-       ol.QTY_ORDERED,
-       ol.QTY_TASKED,
-       ol.QTY_PICKED,
-       ol.QTY_SHIPPED,
-       ol.V_SHORT,
        ol.USER_DEF_TYPE_8 AS UP,
        CASE oh.ORDER_TYPE
        WHEN 'VOR' THEN 'Urgent'
@@ -49,9 +41,15 @@ WHERE mt.SITE_ID = 'LDC'
     AND mt.CONSIGNMENT not in ('-SHP-DCLYON','DISP-FOURN')
 """
 
+# Définition des colonnes à charger
+colonnes = ['WORK_GROUP', 'STATUS', 'CONSIGNMENT_TIME', 'PRINT_LABEL_ID', 'WORK_ZONE', 'SHIP_BY_DATE', 'UP','ORDER_TYPE']
+
 # Définition de l'affichage et intervalle de refresh
 layout = html.Div([
-    html.Div(id='datetime-outlinesvx2', style = {'color' : '#ECECEC', 'text-align' : 'center', 'font-size' : 28}),
+    html.A( id='datetime-outlinesvx2',
+            href='https://qlikview.srv.volvo.com/QvAJAXZfc/opendoc.htm?document=gto-sbi-wms2\\vx2%20outbound%20following%20-%20lines%20productivity.qvw&lang=en-US&host=QVS%40Cluster',
+            target='_blank',
+            style = {'color' : '#ECECEC', 'text-align' : 'center', 'font-size' : 28}),
     html.Hr(),
     html.Div([
         html.Div([
@@ -70,6 +68,7 @@ layout = html.Div([
                           'display' : 'inline-block'})        
             ])
                     ], style={  'backgroundColor' : '#000000',
+                                'text-align' : 'center'
                              })
 # Refresh automatique date
 @callback(Output('datetime-outlinesvx2', 'children'),
@@ -85,8 +84,6 @@ def update_layout(n):
     # Connection BD
     conn = wms2.connect()
     # Execution requête
-    colonnes = ['TASK_ID', 'STATUS', 'WORK_GROUP', 'CONSIGNMENT', 'CONSIGNMENT_TIME', 'PRINT_LABEL_ID', 'WORK_ZONE', 'SHIP_BY_DATE',
-                'LINE_ID', 'QTY_ORDERED', 'QTY_TASKED', 'QTY_PICKED', 'QTY_SHIPPED', 'V_SHORT', 'UP','ORDER_TYPE']
     cursor = conn.cursor()
     cursor.execute(query)
     df = pd.DataFrame(cursor.fetchall(), columns = colonnes)
@@ -101,11 +98,11 @@ def update_layout(n):
     df.loc[df['WORK_ZONE'].str.contains('^(AEC)'), 'SECTEUR'] = 'AEC'
     df.loc[df['WORK_GROUP'].str.contains('^5'), 'SECTEUR'] = 'FSP'
     df.loc[df['WORK_ZONE'] == 'VX2 GZ-', 'SECTEUR'] = 'FSP'
-    df.loc[df['WORK_ZONE'] == 'VX2B', 'SECTEUR'] = 'FSP'
     df.loc[df['WORK_ZONE'] == 'VX2B-DOC', 'SECTEUR'] = 'FSP'
     df.loc[df['WORK_ZONE'] == 'VX2R', 'SECTEUR'] = 'FSP'
-    df.loc[df['WORK_ZONE'] == 'VX2P', 'SECTEUR'] = 'FSP'
     df.loc[df['WORK_ZONE'] == 'VX2P-DOC', 'SECTEUR'] = 'FSP'
+    df.loc[df['WORK_ZONE'] == 'VX2B', 'SECTEUR'] = 'REA'
+    df.loc[df['WORK_ZONE'] == 'VX2P', 'SECTEUR'] = 'REA'
     # Calcul du retard (en jours)
     aujourdhui = dt.datetime.today().date()
     df['SHIP_BY_DATE'] = pd.to_datetime(df['SHIP_BY_DATE'], yearfirst = True)
@@ -132,8 +129,7 @@ def update_layout(n):
     df['WORK_GROUP_2'] = df['WORK_GROUP'].str[:10] + '-' + df['MIN_TIME']
     df.loc[df['WORK_GROUP'].str.contains('^500'), 'WORK_GROUP_2'] = df['WORK_GROUP'].str[:5] + '-' + df['WORK_GROUP'].str[6:10]
     # Restriction aux champs utiles
-    df = df.drop(['TASK_ID', 'STATUS', 'CONSIGNMENT', 'CONSIGNMENT_TIME', 'MIN_TIME', 'PRINT_LABEL_ID', 'WORK_ZONE', 'WORK_GROUP',
-    'SHIP_BY_DATE', 'LINE_ID', 'QTY_ORDERED', 'QTY_TASKED', 'QTY_PICKED', 'QTY_SHIPPED', 'V_SHORT', 'GAP'], axis = 1)
+    df = df.drop(['CONSIGNMENT_TIME', 'MIN_TIME', 'PRINT_LABEL_ID', 'WORK_ZONE', 'WORK_GROUP', 'SHIP_BY_DATE', 'GAP', 'STATUS'], axis = 1)
     df.rename({'WORK_GROUP_2' : 'WORK_GROUP'}, axis = 1, inplace = True)
     # Définition des données pour les visuels
     affichage = df.groupby(['UP', 'ORDER_TYPE', 'SECTEUR', 'WORK_GROUP', 'BACKLOG']).size().reset_index()
@@ -186,8 +182,6 @@ def update_layout(n):
     # Connection BD
     conn = wms2.connect()
     # Execution requête
-    colonnes = ['TASK_ID', 'STATUS', 'WORK_GROUP', 'CONSIGNMENT', 'CONSIGNMENT_TIME', 'PRINT_LABEL_ID', 'WORK_ZONE', 'SHIP_BY_DATE',
-                'LINE_ID', 'QTY_ORDERED', 'QTY_TASKED', 'QTY_PICKED', 'QTY_SHIPPED', 'V_SHORT', 'UP','ORDER_TYPE']
     cursor = conn.cursor()
     cursor.execute(query)
     df = pd.DataFrame(cursor.fetchall(), columns = colonnes)
@@ -202,11 +196,11 @@ def update_layout(n):
     df.loc[df['WORK_ZONE'].str.contains('^(AEC)'), 'SECTEUR'] = 'AEC'
     df.loc[df['WORK_GROUP'].str.contains('^5'), 'SECTEUR'] = 'FSP'
     df.loc[df['WORK_ZONE'] == 'VX2 GZ-', 'SECTEUR'] = 'FSP'
-    df.loc[df['WORK_ZONE'] == 'VX2B', 'SECTEUR'] = 'FSP'
     df.loc[df['WORK_ZONE'] == 'VX2B-DOC', 'SECTEUR'] = 'FSP'
     df.loc[df['WORK_ZONE'] == 'VX2R', 'SECTEUR'] = 'FSP'
-    df.loc[df['WORK_ZONE'] == 'VX2P', 'SECTEUR'] = 'FSP'
     df.loc[df['WORK_ZONE'] == 'VX2P-DOC', 'SECTEUR'] = 'FSP'
+    df.loc[df['WORK_ZONE'] == 'VX2B', 'SECTEUR'] = 'REA'
+    df.loc[df['WORK_ZONE'] == 'VX2P', 'SECTEUR'] = 'REA'
     # Calcul du retard (en jours)
     aujourdhui = dt.datetime.today().date()
     df['SHIP_BY_DATE'] = pd.to_datetime(df['SHIP_BY_DATE'], yearfirst = True)
@@ -224,20 +218,21 @@ def update_layout(n):
         maintenant = '0' + maintenant
     df.loc[(df['BACKLOG'] == 'J') & (df['CONSIGNMENT_TIME'] < maintenant), 'BACKLOG'] = 'Retard'
     # Définition des données pour les visuels
-    retard = len(df[(df['UP']=='VX2')&(df['ORDER_TYPE']=='Régulier')&(df['BACKLOG']=='Retard')])
-    jour = len(df[(df['UP']=='VX2')&(df['ORDER_TYPE']=='Régulier')&(df['BACKLOG']=='J')])
-    lendemain = len(df[(df['UP']=='VX2')&(df['ORDER_TYPE']=='Régulier')&(df['BACKLOG']=='J+1')])
-    total = len(df[(df['UP']=='VX2')&(df['ORDER_TYPE']=='Régulier')])
+    retard = len(df[(df['UP']=='VX2')&(df['ORDER_TYPE']=='Régulier')&(df['SECTEUR']=='PIGO')&(df['BACKLOG']=='Retard')])
+    jour = len(df[(df['UP']=='VX2')&(df['ORDER_TYPE']=='Régulier')&(df['SECTEUR']=='PIGO')&(df['BACKLOG']=='J')])
+    lendemain = len(df[(df['UP']=='VX2')&(df['ORDER_TYPE']=='Régulier')&(df['SECTEUR']=='PIGO')&(df['BACKLOG']=='J+1')])
+    total = len(df[(df['UP']=='VX2')&(df['ORDER_TYPE']=='Régulier')&(df['SECTEUR']=='PIGO')])
+    erreur = len(df[(df['UP']=='VX2')&(df['ORDER_TYPE']=='Régulier')&(df['SECTEUR']=='PIGO')&(df['STATUS']=='Error')])
     # Définition du visuel à afficher (figure)
     trace = go.Table(
-                    columnwidth = [25, 25, 25, 25],
-                    header = dict(  values = ['Retard', 'J', 'J+1', 'Total'],
-                                    fill = dict(color=['#FF0000', '#00FF00', '#bbbbbb', '#000000']),
+                    columnwidth = [25, 25, 25, 25, 25],
+                    header = dict(  values = ['Retard', 'J', 'J+1', 'Total', 'Erreur'],
+                                    fill = dict(color=['#FF0000', '#00FF00', '#BBBBBB', '#000000', '#FFFF00']),
                                     line = dict(color='#777777', width=1),
                                     font = dict(color = '#ECECEC', size = 20),
                                     align = ['center'],
                                     height = 35),
-                    cells = dict(   values = [retard, jour, lendemain, total],
+                    cells = dict(   values = [retard, jour, lendemain, total, erreur],
                                     fill = dict(color='#000000'),
                                     line = dict(color='#777777', width=1),
                                     font = dict(color = '#ECECEC', size = 20), # [couleur_retard], 
@@ -250,7 +245,7 @@ def update_layout(n):
         'layout' : {
             'paper_bgcolor' : '#000000',
             'height' : 110,
-            'margin' : dict(l=150, r=100, t=40, b=0)
+            'margin' : dict(l=150, r=75, t=40, b=0)
         }
     }
 
@@ -261,8 +256,6 @@ def update_layout(n):
     # Connection BD
     conn = wms2.connect()
     # Execution requête
-    colonnes = ['TASK_ID', 'STATUS', 'WORK_GROUP', 'CONSIGNMENT', 'CONSIGNMENT_TIME', 'PRINT_LABEL_ID', 'WORK_ZONE', 'SHIP_BY_DATE',
-                'LINE_ID', 'QTY_ORDERED', 'QTY_TASKED', 'QTY_PICKED', 'QTY_SHIPPED', 'V_SHORT', 'UP','ORDER_TYPE']
     cursor = conn.cursor()
     cursor.execute(query)
     df = pd.DataFrame(cursor.fetchall(), columns = colonnes)
@@ -277,11 +270,11 @@ def update_layout(n):
     df.loc[df['WORK_ZONE'].str.contains('^(AEC)'), 'SECTEUR'] = 'AEC'
     df.loc[df['WORK_GROUP'].str.contains('^5'), 'SECTEUR'] = 'FSP'
     df.loc[df['WORK_ZONE'] == 'VX2 GZ-', 'SECTEUR'] = 'FSP'
-    df.loc[df['WORK_ZONE'] == 'VX2B', 'SECTEUR'] = 'FSP'
     df.loc[df['WORK_ZONE'] == 'VX2B-DOC', 'SECTEUR'] = 'FSP'
     df.loc[df['WORK_ZONE'] == 'VX2R', 'SECTEUR'] = 'FSP'
-    df.loc[df['WORK_ZONE'] == 'VX2P', 'SECTEUR'] = 'FSP'
     df.loc[df['WORK_ZONE'] == 'VX2P-DOC', 'SECTEUR'] = 'FSP'
+    df.loc[df['WORK_ZONE'] == 'VX2B', 'SECTEUR'] = 'REA'
+    df.loc[df['WORK_ZONE'] == 'VX2P', 'SECTEUR'] = 'REA'
     # Calcul du retard (en jours)
     aujourdhui = dt.datetime.today().date()
     df['SHIP_BY_DATE'] = pd.to_datetime(df['SHIP_BY_DATE'], yearfirst = True)
@@ -300,14 +293,13 @@ def update_layout(n):
     df['WORK_GROUP_2'] = df['WORK_GROUP'].str[:10] + '-' + df['CONSIGNMENT_TIME']
     df.loc[df['WORK_GROUP'].str.contains('^500'), 'WORK_GROUP_2'] = df['WORK_GROUP'].str[:10]
     # Restriction aux champs utiles
-    df = df.drop(['TASK_ID', 'STATUS', 'CONSIGNMENT', 'CONSIGNMENT_TIME', 'PRINT_LABEL_ID', 'WORK_ZONE', 'WORK_GROUP',
-    'SHIP_BY_DATE', 'LINE_ID', 'QTY_ORDERED', 'QTY_TASKED', 'QTY_PICKED', 'QTY_SHIPPED', 'V_SHORT', 'GAP'], axis = 1)
+    df = df.drop(['CONSIGNMENT_TIME', 'PRINT_LABEL_ID', 'WORK_ZONE', 'WORK_GROUP', 'SHIP_BY_DATE', 'GAP', 'STATUS'], axis = 1)
     df.rename({'WORK_GROUP_2' : 'WORK_GROUP'}, axis = 1, inplace = True)
     # Définition des données pour les visuels
     affichage = df.groupby(['UP', 'ORDER_TYPE', 'SECTEUR', 'WORK_GROUP', 'BACKLOG']).size().reset_index()
     affichage.rename({0 : 'Lines'}, axis = 1, inplace = True)
     # Définition du visuel à afficher (figure)
-    reg_J0 = go.Bar(
+    urg_J0 = go.Bar(
                     name = 'J',
                     x = affichage['Lines'][(affichage['UP']=='VX2') & (affichage['SECTEUR']=='PIGO') & (affichage['ORDER_TYPE']=='Urgent') & (affichage['BACKLOG']=='J')],
                     y = affichage['WORK_GROUP'][(affichage['UP']=='VX2') & (affichage['SECTEUR']=='PIGO') & (affichage['ORDER_TYPE']=='Urgent') & (affichage['BACKLOG']=='J')],
@@ -315,7 +307,7 @@ def update_layout(n):
                     orientation = 'h',
                     marker = dict (color = '#00ff00')
                     )
-    reg_J1 = go.Bar(
+    urg_J1 = go.Bar(
                     name = 'J+1',
                     x = affichage['Lines'][(affichage['UP']=='VX2') & (affichage['SECTEUR']=='PIGO') & (affichage['ORDER_TYPE']=='Urgent') & (affichage['BACKLOG']=='J+1')],
                     y = affichage['WORK_GROUP'][(affichage['UP']=='VX2') & (affichage['SECTEUR']=='PIGO') & (affichage['ORDER_TYPE']=='Urgent') & (affichage['BACKLOG']=='J+1')],
@@ -323,7 +315,7 @@ def update_layout(n):
                     orientation = 'h',
                     marker = dict (color = '#bbbbbb')
                     )
-    reg_Ret = go.Bar(
+    urg_Ret = go.Bar(
                     name = 'Retard',
                     x = affichage['Lines'][(affichage['UP']=='VX2') & (affichage['SECTEUR']=='PIGO') & (affichage['ORDER_TYPE']=='Urgent') & (affichage['BACKLOG']=='Retard')],
                     y = affichage['WORK_GROUP'][(affichage['UP']=='VX2') & (affichage['SECTEUR']=='PIGO') & (affichage['ORDER_TYPE']=='Urgent') & (affichage['BACKLOG']=='Retard')],
@@ -331,7 +323,7 @@ def update_layout(n):
                     orientation = 'h',
                     marker = dict (color = '#ff0000')
                     )
-    data = [reg_Ret, reg_J0, reg_J1]
+    data = [urg_Ret, urg_J0, urg_J1]
     layout = go.Layout(barmode = 'stack',
                        paper_bgcolor = '#000000',
                        plot_bgcolor = '#000000',
@@ -354,8 +346,6 @@ def update_layout(n):
     # Connection BD
     conn = wms2.connect()
     # Execution requête
-    colonnes = ['TASK_ID', 'STATUS', 'WORK_GROUP', 'CONSIGNMENT', 'CONSIGNMENT_TIME', 'PRINT_LABEL_ID', 'WORK_ZONE', 'SHIP_BY_DATE',
-                'LINE_ID', 'QTY_ORDERED', 'QTY_TASKED', 'QTY_PICKED', 'QTY_SHIPPED', 'V_SHORT', 'UP','ORDER_TYPE']
     cursor = conn.cursor()
     cursor.execute(query)
     df = pd.DataFrame(cursor.fetchall(), columns = colonnes)
@@ -370,11 +360,11 @@ def update_layout(n):
     df.loc[df['WORK_ZONE'].str.contains('^(AEC)'), 'SECTEUR'] = 'AEC'
     df.loc[df['WORK_GROUP'].str.contains('^5'), 'SECTEUR'] = 'FSP'
     df.loc[df['WORK_ZONE'] == 'VX2 GZ-', 'SECTEUR'] = 'FSP'
-    df.loc[df['WORK_ZONE'] == 'VX2B', 'SECTEUR'] = 'FSP'
     df.loc[df['WORK_ZONE'] == 'VX2B-DOC', 'SECTEUR'] = 'FSP'
     df.loc[df['WORK_ZONE'] == 'VX2R', 'SECTEUR'] = 'FSP'
-    df.loc[df['WORK_ZONE'] == 'VX2P', 'SECTEUR'] = 'FSP'
     df.loc[df['WORK_ZONE'] == 'VX2P-DOC', 'SECTEUR'] = 'FSP'
+    df.loc[df['WORK_ZONE'] == 'VX2B', 'SECTEUR'] = 'REA'
+    df.loc[df['WORK_ZONE'] == 'VX2P', 'SECTEUR'] = 'REA'
     # Calcul du retard (en jours)
     aujourdhui = dt.datetime.today().date()
     df['SHIP_BY_DATE'] = pd.to_datetime(df['SHIP_BY_DATE'], yearfirst = True)
@@ -392,20 +382,21 @@ def update_layout(n):
         maintenant = '0' + maintenant
     df.loc[(df['BACKLOG'] == 'J') & (df['CONSIGNMENT_TIME'] < maintenant), 'BACKLOG'] = 'Retard'
     # Définition des données pour les visuels
-    retard = len(df[(df['UP']=='VX2')&(df['ORDER_TYPE']=='Urgent')&(df['BACKLOG']=='Retard')])
-    jour = len(df[(df['UP']=='VX2')&(df['ORDER_TYPE']=='Urgent')&(df['BACKLOG']=='J')])
-    lendemain = len(df[(df['UP']=='VX2')&(df['ORDER_TYPE']=='Urgent')&(df['BACKLOG']=='J+1')])
-    total = len(df[(df['UP']=='VX2')&(df['ORDER_TYPE']=='Urgent')])
+    retard = len(df[(df['UP']=='VX2')&(df['ORDER_TYPE']=='Urgent')&(df['SECTEUR']=='PIGO')&(df['BACKLOG']=='Retard')])
+    jour = len(df[(df['UP']=='VX2')&(df['ORDER_TYPE']=='Urgent')&(df['SECTEUR']=='PIGO')&(df['BACKLOG']=='J')])
+    lendemain = len(df[(df['UP']=='VX2')&(df['ORDER_TYPE']=='Urgent')&(df['SECTEUR']=='PIGO')&(df['BACKLOG']=='J+1')])
+    total = len(df[(df['UP']=='VX2')&(df['ORDER_TYPE']=='Urgent')&(df['SECTEUR']=='PIGO')])
+    erreur = len(df[(df['UP']=='VX2')&(df['ORDER_TYPE']=='Urgent')&(df['SECTEUR']=='PIGO')&(df['STATUS']=='Error')]) 
     # Définition du visuel à afficher (figure)
     trace = go.Table(
-                    columnwidth = [25, 25, 25, 25],
-                    header = dict(  values = ['Retard', 'J', 'J+1', 'Total'],
-                                    fill = dict(color=['#FF0000', '#00FF00', '#bbbbbb', '#000000']),
+                    columnwidth = [25, 25, 25, 25, 25],
+                    header = dict(  values = ['Retard', 'J', 'J+1', 'Total', 'Erreur'],
+                                    fill = dict(color=['#FF0000', '#00FF00', '#BBBBBB', '#000000', '#FFFF00']),
                                     line = dict(color='#777777', width=1),
                                     font = dict(color = '#ECECEC', size = 20),
                                     align = ['center'],
                                     height = 35),
-                    cells = dict(   values = [retard, jour, lendemain, total],
+                    cells = dict(   values = [retard, jour, lendemain, total, erreur],
                                     fill = dict(color='#000000'),
                                     line = dict(color='#777777', width=1),
                                     font = dict(color = '#ECECEC', size = 20), # [couleur_retard], 

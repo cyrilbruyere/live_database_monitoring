@@ -59,6 +59,10 @@ GROUP BY TRUNC(mt.DSTAMP), mt.CONSIGNMENT, mt.WORK_GROUP, mt.TASK_TYPE, mt.LIST_
 # Définition de l'affichage et intervalle de refresh
 layout = html.Div([
     html.Div(id='datetime-packsize', style = {'color' : '#ECECEC', 'text-align' : 'center', 'font-size' : 28}),
+    html.A( id='datetime-packsize',
+            href='https://qlikview.srv.volvo.com/QvAJAXZfc/opendoc.htm?document=gto-sbi-wms2\outbound%20following%20-%20consolidation%20packsize.qvw&lang=en-US&host=QVS%40Cluster',
+            target='_blank',
+            style = {'color' : '#ECECEC', 'text-align' : 'center', 'font-size' : 28}),
     html.Hr(),
     html.Div([
             dcc.Interval(id='interval-packsize',
@@ -67,7 +71,8 @@ layout = html.Div([
                          ),
             dcc.Graph(id='Andon-packsize')
             ])
-                        ], style={  'backgroundColor' : '#000000'})
+                        ], style={  'backgroundColor' : '#000000',
+                                    'text-align' : 'center'})
 
 # Refresh automatique date
 @callback(Output('datetime-packsize', 'children'),

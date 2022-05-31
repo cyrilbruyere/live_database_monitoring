@@ -39,6 +39,10 @@ conso_vx2 = """
 # Définition de l'affichage et intervalle de refresh
 layout = html.Div([
     html.Div(id='datetime-consovx2', style = {'color' : '#ECECEC', 'text-align' : 'center', 'font-size' : 28}),
+    html.A( id='datetime-consovx2',
+            href='https://qlikview.srv.volvo.com/QvAJAXZfc/opendoc.htm?document=gto-sbi-wms2\outbound%20following%20-%20consolidation%20vx2.qvw&lang=en-US&host=QVS%40Cluster',
+            target='_blank',
+            style = {'color' : '#ECECEC', 'text-align' : 'center', 'font-size' : 28}),
     html.Hr(),
     html.Div([
             dcc.Interval(id='interval-consovx2',
@@ -47,7 +51,8 @@ layout = html.Div([
                          ),
             dcc.Graph(id='Andon-consovx2')
             ])
-                        ], style={  'backgroundColor' : '#000000'})
+                        ], style={  'backgroundColor' : '#000000',
+                                    'text-align' : 'center'})
 
 # Refresh automatique date
 @callback(Output('datetime-consovx2', 'children'),
