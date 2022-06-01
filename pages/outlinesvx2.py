@@ -50,6 +50,15 @@ layout = html.Div([
             href='https://qlikview.srv.volvo.com/QvAJAXZfc/opendoc.htm?document=gto-sbi-wms2\\vx2%20outbound%20following%20-%20lines%20productivity.qvw&lang=en-US&host=QVS%40Cluster',
             target='_blank',
             style = {'color' : '#ECECEC', 'text-align' : 'center', 'font-size' : 28}),
+    html.Div([
+                dcc.Checklist(
+                    id = 'checklist-outlinesvx2',
+                    options = ['VX1', 'DE5', 'PIGO', 'FSP', 'PB', 'AEC', 'REA', 'Autres'],
+                    value = ['PIGO'],
+                    inline = True,
+                    labelStyle = {'color': '#ECECEC'}
+                )
+            ]),
     html.Hr(),
     html.Div([
         html.Div([
@@ -79,8 +88,9 @@ def update_time(n):
 
 # Refresh écran Andon REGULIER
 @callback(Output('Andon-outlinesvx2-reg', 'figure'),
-              [Input('interval-outlinesvx2', 'n_intervals')])
-def update_layout(n):
+              [Input('interval-outlinesvx2', 'n_intervals'),
+              Input('checklist-outlinesvx2', 'value')])
+def update_layout(n, secteur):
     # Connection BD
     conn = wms2.connect()
     # Execution requête
@@ -91,18 +101,27 @@ def update_layout(n):
     conn.commit()
     conn.close()
     # correction périmètre des UP
+    df['UP'].replace(to_replace = ['VX1-ANNEX'], value = ['VX1'], inplace = True)
     df['UP'].replace(to_replace = ['GLPB'], value = ['VX2'], inplace = True)
     # définition des secteurs
-    df['SECTEUR'] = 'PIGO'
-    df.loc[df['WORK_ZONE'] == 'PBGL', 'SECTEUR'] = 'PB'
-    df.loc[df['WORK_ZONE'].str.contains('^(AEC)'), 'SECTEUR'] = 'AEC'
-    df.loc[df['WORK_GROUP'].str.contains('^5'), 'SECTEUR'] = 'FSP'
-    df.loc[df['WORK_ZONE'] == 'VX2 GZ-', 'SECTEUR'] = 'FSP'
-    df.loc[df['WORK_ZONE'] == 'VX2B-DOC', 'SECTEUR'] = 'FSP'
-    df.loc[df['WORK_ZONE'] == 'VX2R', 'SECTEUR'] = 'FSP'
-    df.loc[df['WORK_ZONE'] == 'VX2P-DOC', 'SECTEUR'] = 'FSP'
-    df.loc[df['WORK_ZONE'] == 'VX2B', 'SECTEUR'] = 'REA'
-    df.loc[df['WORK_ZONE'] == 'VX2P', 'SECTEUR'] = 'REA'
+    df['SECTEUR'] = 'Autres'
+    # VX1
+    df.loc[df['UP'] == 'VX1', 'SECTEUR'] = 'VX1'
+    df.loc[((df['UP'] == 'VX1') & (df['WORK_ZONE'] == 'DE5')), 'SECTEUR'] = 'DE5'
+    df.loc[((df['UP'] == 'VX1') & (df['WORK_ZONE'] == 'WS-DE5')), 'SECTEUR'] = 'DE5'
+    df.loc[((df['UP'] == 'VX1') & (df['WORK_ZONE'] == 'DE6')), 'SECTEUR'] = 'DE5'
+    df.loc[((df['UP'] == 'VX1') & (df['WORK_ZONE'] == 'WS-DE6')), 'SECTEUR'] = 'DE5'
+    # VX2
+    df.loc[df['UP'] == 'VX2', 'SECTEUR'] = 'PIGO'
+    df.loc[((df['UP'] == 'VX2') & (df['WORK_ZONE'] == 'PBGL')), 'SECTEUR'] = 'PB'
+    df.loc[((df['UP'] == 'VX2') & (df['WORK_ZONE'].str.contains('^(AEC)'))), 'SECTEUR'] = 'AEC'
+    df.loc[((df['UP'] == 'VX2') & (df['WORK_GROUP'].str.contains('^5'))), 'SECTEUR'] = 'FSP'
+    df.loc[((df['UP'] == 'VX2') & (df['WORK_ZONE'] == 'VX2 GZ-')), 'SECTEUR'] = 'FSP'
+    df.loc[((df['UP'] == 'VX2') & (df['WORK_ZONE'] == 'VX2B-DOC')), 'SECTEUR'] = 'FSP'
+    df.loc[((df['UP'] == 'VX2') & (df['WORK_ZONE'] == 'VX2R')), 'SECTEUR'] = 'FSP'
+    df.loc[((df['UP'] == 'VX2') & (df['WORK_ZONE'] == 'VX2P-DOC')), 'SECTEUR'] = 'FSP'
+    df.loc[((df['UP'] == 'VX2') & (df['WORK_ZONE'] == 'VX2B')), 'SECTEUR'] = 'REA'
+    df.loc[((df['UP'] == 'VX2') & (df['WORK_ZONE'] == 'VX2P')), 'SECTEUR'] = 'REA'
     # Calcul du retard (en jours)
     aujourdhui = dt.datetime.today().date()
     df['SHIP_BY_DATE'] = pd.to_datetime(df['SHIP_BY_DATE'], yearfirst = True)
@@ -129,33 +148,33 @@ def update_layout(n):
     df['WORK_GROUP_2'] = df['WORK_GROUP'].str[:10] + '-' + df['MIN_TIME']
     df.loc[df['WORK_GROUP'].str.contains('^500'), 'WORK_GROUP_2'] = df['WORK_GROUP'].str[:5] + '-' + df['WORK_GROUP'].str[6:10]
     # Restriction aux champs utiles
-    df = df.drop(['CONSIGNMENT_TIME', 'MIN_TIME', 'PRINT_LABEL_ID', 'WORK_ZONE', 'WORK_GROUP', 'SHIP_BY_DATE', 'GAP', 'STATUS'], axis = 1)
+    df = df.drop(['CONSIGNMENT_TIME', 'MIN_TIME', 'PRINT_LABEL_ID', 'WORK_ZONE', 'WORK_GROUP', 'SHIP_BY_DATE', 'GAP', 'STATUS', 'UP'], axis = 1)
     df.rename({'WORK_GROUP_2' : 'WORK_GROUP'}, axis = 1, inplace = True)
     # Définition des données pour les visuels
-    affichage = df.groupby(['UP', 'ORDER_TYPE', 'SECTEUR', 'WORK_GROUP', 'BACKLOG']).size().reset_index()
+    affichage = df.groupby(['ORDER_TYPE', 'SECTEUR', 'WORK_GROUP', 'BACKLOG']).size().reset_index()
     affichage.rename({0 : 'Lines'}, axis = 1, inplace = True)
     # Définition du visuel à afficher (figure)
     reg_J0 = go.Bar(
                     name = 'J',
-                    x = affichage['Lines'][(affichage['UP']=='VX2') & (affichage['SECTEUR']=='PIGO') & (affichage['ORDER_TYPE']=='Régulier') & (affichage['BACKLOG']=='J')],
-                    y = affichage['WORK_GROUP'][(affichage['UP']=='VX2') & (affichage['SECTEUR']=='PIGO') & (affichage['ORDER_TYPE']=='Régulier') & (affichage['BACKLOG']=='J')],
-                    text = affichage['Lines'][(affichage['UP']=='VX2') & (affichage['SECTEUR']=='PIGO') & (affichage['ORDER_TYPE']=='Régulier') & (affichage['BACKLOG']=='J')],
+                    x = affichage['Lines'][(affichage['SECTEUR'].isin(secteur)) & (affichage['ORDER_TYPE']=='Régulier') & (affichage['BACKLOG']=='J')],
+                    y = affichage['WORK_GROUP'][(affichage['SECTEUR'].isin(secteur)) & (affichage['ORDER_TYPE']=='Régulier') & (affichage['BACKLOG']=='J')],
+                    text = affichage['Lines'][(affichage['SECTEUR'].isin(secteur)) & (affichage['ORDER_TYPE']=='Régulier') & (affichage['BACKLOG']=='J')],
                     orientation = 'h',
                     marker = dict (color = '#00ff00')
                     )
     reg_J1 = go.Bar(
                     name = 'J+1',
-                    x = affichage['Lines'][(affichage['UP']=='VX2') & (affichage['SECTEUR']=='PIGO') & (affichage['ORDER_TYPE']=='Régulier') & (affichage['BACKLOG']=='J+1')],
-                    y = affichage['WORK_GROUP'][(affichage['UP']=='VX2') & (affichage['SECTEUR']=='PIGO') & (affichage['ORDER_TYPE']=='Régulier') & (affichage['BACKLOG']=='J+1')],
-                    text = affichage['Lines'][(affichage['UP']=='VX2') & (affichage['SECTEUR']=='PIGO') & (affichage['ORDER_TYPE']=='Régulier') & (affichage['BACKLOG']=='J+1')],
+                    x = affichage['Lines'][(affichage['SECTEUR'].isin(secteur)) & (affichage['ORDER_TYPE']=='Régulier') & (affichage['BACKLOG']=='J+1')],
+                    y = affichage['WORK_GROUP'][(affichage['SECTEUR'].isin(secteur)) & (affichage['ORDER_TYPE']=='Régulier') & (affichage['BACKLOG']=='J+1')],
+                    text = affichage['Lines'][(affichage['SECTEUR'].isin(secteur)) & (affichage['ORDER_TYPE']=='Régulier') & (affichage['BACKLOG']=='J+1')],
                     orientation = 'h',
                     marker = dict (color = '#bbbbbb')
                     )
     reg_Ret = go.Bar(
                     name = 'Retard',
-                    x = affichage['Lines'][(affichage['UP']=='VX2') & (affichage['SECTEUR']=='PIGO') & (affichage['ORDER_TYPE']=='Régulier') & (affichage['BACKLOG']=='Retard')],
-                    y = affichage['WORK_GROUP'][(affichage['UP']=='VX2') & (affichage['SECTEUR']=='PIGO') & (affichage['ORDER_TYPE']=='Régulier') & (affichage['BACKLOG']=='Retard')],
-                    text = affichage['Lines'][(affichage['UP']=='VX2') & (affichage['SECTEUR']=='PIGO') & (affichage['ORDER_TYPE']=='Régulier') & (affichage['BACKLOG']=='Retard')],
+                    x = affichage['Lines'][(affichage['SECTEUR'].isin(secteur)) & (affichage['ORDER_TYPE']=='Régulier') & (affichage['BACKLOG']=='Retard')],
+                    y = affichage['WORK_GROUP'][(affichage['SECTEUR'].isin(secteur)) & (affichage['ORDER_TYPE']=='Régulier') & (affichage['BACKLOG']=='Retard')],
+                    text = affichage['Lines'][(affichage['SECTEUR'].isin(secteur)) & (affichage['ORDER_TYPE']=='Régulier') & (affichage['BACKLOG']=='Retard')],
                     orientation = 'h',
                     marker = dict (color = '#ff0000')
                     )
@@ -177,8 +196,9 @@ def update_layout(n):
 
 # Refresh écran Andon REGULIER SUMMARY
 @callback(Output('Andon-outlinesvx2-reg-sum', 'figure'),
-              [Input('interval-outlinesvx2', 'n_intervals')])
-def update_layout(n):
+              [Input('interval-outlinesvx2', 'n_intervals'),
+              Input('checklist-outlinesvx2', 'value')])
+def update_layout(n, secteur):
     # Connection BD
     conn = wms2.connect()
     # Execution requête
@@ -189,18 +209,27 @@ def update_layout(n):
     conn.commit()
     conn.close()
     # correction périmètre des UP
+    df['UP'].replace(to_replace = ['VX1-ANNEX'], value = ['VX1'], inplace = True)
     df['UP'].replace(to_replace = ['GLPB'], value = ['VX2'], inplace = True)
     # définition des secteurs
-    df['SECTEUR'] = 'PIGO'
-    df.loc[df['WORK_ZONE'] == 'PBGL', 'SECTEUR'] = 'PB'
-    df.loc[df['WORK_ZONE'].str.contains('^(AEC)'), 'SECTEUR'] = 'AEC'
-    df.loc[df['WORK_GROUP'].str.contains('^5'), 'SECTEUR'] = 'FSP'
-    df.loc[df['WORK_ZONE'] == 'VX2 GZ-', 'SECTEUR'] = 'FSP'
-    df.loc[df['WORK_ZONE'] == 'VX2B-DOC', 'SECTEUR'] = 'FSP'
-    df.loc[df['WORK_ZONE'] == 'VX2R', 'SECTEUR'] = 'FSP'
-    df.loc[df['WORK_ZONE'] == 'VX2P-DOC', 'SECTEUR'] = 'FSP'
-    df.loc[df['WORK_ZONE'] == 'VX2B', 'SECTEUR'] = 'REA'
-    df.loc[df['WORK_ZONE'] == 'VX2P', 'SECTEUR'] = 'REA'
+    df['SECTEUR'] = 'Autres'
+    # VX1
+    df.loc[df['UP'] == 'VX1', 'SECTEUR'] = 'VX1'
+    df.loc[((df['UP'] == 'VX1') & (df['WORK_ZONE'] == 'DE5')), 'SECTEUR'] = 'DE5'
+    df.loc[((df['UP'] == 'VX1') & (df['WORK_ZONE'] == 'WS-DE5')), 'SECTEUR'] = 'DE5'
+    df.loc[((df['UP'] == 'VX1') & (df['WORK_ZONE'] == 'DE6')), 'SECTEUR'] = 'DE5'
+    df.loc[((df['UP'] == 'VX1') & (df['WORK_ZONE'] == 'WS-DE6')), 'SECTEUR'] = 'DE5'
+    # VX2
+    df.loc[df['UP'] == 'VX2', 'SECTEUR'] = 'PIGO'
+    df.loc[((df['UP'] == 'VX2') & (df['WORK_ZONE'] == 'PBGL')), 'SECTEUR'] = 'PB'
+    df.loc[((df['UP'] == 'VX2') & (df['WORK_ZONE'].str.contains('^(AEC)'))), 'SECTEUR'] = 'AEC'
+    df.loc[((df['UP'] == 'VX2') & (df['WORK_GROUP'].str.contains('^5'))), 'SECTEUR'] = 'FSP'
+    df.loc[((df['UP'] == 'VX2') & (df['WORK_ZONE'] == 'VX2 GZ-')), 'SECTEUR'] = 'FSP'
+    df.loc[((df['UP'] == 'VX2') & (df['WORK_ZONE'] == 'VX2B-DOC')), 'SECTEUR'] = 'FSP'
+    df.loc[((df['UP'] == 'VX2') & (df['WORK_ZONE'] == 'VX2R')), 'SECTEUR'] = 'FSP'
+    df.loc[((df['UP'] == 'VX2') & (df['WORK_ZONE'] == 'VX2P-DOC')), 'SECTEUR'] = 'FSP'
+    df.loc[((df['UP'] == 'VX2') & (df['WORK_ZONE'] == 'VX2B')), 'SECTEUR'] = 'REA'
+    df.loc[((df['UP'] == 'VX2') & (df['WORK_ZONE'] == 'VX2P')), 'SECTEUR'] = 'REA'
     # Calcul du retard (en jours)
     aujourdhui = dt.datetime.today().date()
     df['SHIP_BY_DATE'] = pd.to_datetime(df['SHIP_BY_DATE'], yearfirst = True)
@@ -218,11 +247,11 @@ def update_layout(n):
         maintenant = '0' + maintenant
     df.loc[(df['BACKLOG'] == 'J') & (df['CONSIGNMENT_TIME'] < maintenant), 'BACKLOG'] = 'Retard'
     # Définition des données pour les visuels
-    retard = len(df[(df['UP']=='VX2')&(df['ORDER_TYPE']=='Régulier')&(df['SECTEUR']=='PIGO')&(df['BACKLOG']=='Retard')])
-    jour = len(df[(df['UP']=='VX2')&(df['ORDER_TYPE']=='Régulier')&(df['SECTEUR']=='PIGO')&(df['BACKLOG']=='J')])
-    lendemain = len(df[(df['UP']=='VX2')&(df['ORDER_TYPE']=='Régulier')&(df['SECTEUR']=='PIGO')&(df['BACKLOG']=='J+1')])
-    total = len(df[(df['UP']=='VX2')&(df['ORDER_TYPE']=='Régulier')&(df['SECTEUR']=='PIGO')])
-    erreur = len(df[(df['UP']=='VX2')&(df['ORDER_TYPE']=='Régulier')&(df['SECTEUR']=='PIGO')&(df['STATUS']=='Error')])
+    retard = len(df[(df['ORDER_TYPE']=='Régulier')&(df['SECTEUR'].isin(secteur))&(df['BACKLOG']=='Retard')])
+    jour = len(df[(df['ORDER_TYPE']=='Régulier')&(df['SECTEUR'].isin(secteur))&(df['BACKLOG']=='J')])
+    lendemain = len(df[(df['ORDER_TYPE']=='Régulier')&(df['SECTEUR'].isin(secteur))&(df['BACKLOG']=='J+1')])
+    total = len(df[(df['ORDER_TYPE']=='Régulier')&(df['SECTEUR'].isin(secteur))])
+    erreur = len(df[(df['ORDER_TYPE']=='Régulier')&(df['SECTEUR'].isin(secteur))&(df['STATUS']=='Error')])
     # Définition du visuel à afficher (figure)
     trace = go.Table(
                     columnwidth = [25, 25, 25, 25, 25],
@@ -251,8 +280,9 @@ def update_layout(n):
 
 # Refresh écran Andon URGENT
 @callback(Output('Andon-outlinesvx2-urg', 'figure'),
-              [Input('interval-outlinesvx2', 'n_intervals')])
-def update_layout(n):
+              [Input('interval-outlinesvx2', 'n_intervals'),
+              Input('checklist-outlinesvx2', 'value')])
+def update_layout(n, secteur):
     # Connection BD
     conn = wms2.connect()
     # Execution requête
@@ -263,18 +293,27 @@ def update_layout(n):
     conn.commit()
     conn.close()
     # correction périmètre des UP
+    df['UP'].replace(to_replace = ['VX1-ANNEX'], value = ['VX1'], inplace = True)
     df['UP'].replace(to_replace = ['GLPB'], value = ['VX2'], inplace = True)
     # définition des secteurs
-    df['SECTEUR'] = 'PIGO'
-    df.loc[df['WORK_ZONE'] == 'PBGL', 'SECTEUR'] = 'PB'
-    df.loc[df['WORK_ZONE'].str.contains('^(AEC)'), 'SECTEUR'] = 'AEC'
-    df.loc[df['WORK_GROUP'].str.contains('^5'), 'SECTEUR'] = 'FSP'
-    df.loc[df['WORK_ZONE'] == 'VX2 GZ-', 'SECTEUR'] = 'FSP'
-    df.loc[df['WORK_ZONE'] == 'VX2B-DOC', 'SECTEUR'] = 'FSP'
-    df.loc[df['WORK_ZONE'] == 'VX2R', 'SECTEUR'] = 'FSP'
-    df.loc[df['WORK_ZONE'] == 'VX2P-DOC', 'SECTEUR'] = 'FSP'
-    df.loc[df['WORK_ZONE'] == 'VX2B', 'SECTEUR'] = 'REA'
-    df.loc[df['WORK_ZONE'] == 'VX2P', 'SECTEUR'] = 'REA'
+    df['SECTEUR'] = 'Autres'
+    # VX1
+    df.loc[df['UP'] == 'VX1', 'SECTEUR'] = 'VX1'
+    df.loc[((df['UP'] == 'VX1') & (df['WORK_ZONE'] == 'DE5')), 'SECTEUR'] = 'DE5'
+    df.loc[((df['UP'] == 'VX1') & (df['WORK_ZONE'] == 'WS-DE5')), 'SECTEUR'] = 'DE5'
+    df.loc[((df['UP'] == 'VX1') & (df['WORK_ZONE'] == 'DE6')), 'SECTEUR'] = 'DE5'
+    df.loc[((df['UP'] == 'VX1') & (df['WORK_ZONE'] == 'WS-DE6')), 'SECTEUR'] = 'DE5'
+    # VX2
+    df.loc[df['UP'] == 'VX2', 'SECTEUR'] = 'PIGO'
+    df.loc[((df['UP'] == 'VX2') & (df['WORK_ZONE'] == 'PBGL')), 'SECTEUR'] = 'PB'
+    df.loc[((df['UP'] == 'VX2') & (df['WORK_ZONE'].str.contains('^(AEC)'))), 'SECTEUR'] = 'AEC'
+    df.loc[((df['UP'] == 'VX2') & (df['WORK_GROUP'].str.contains('^5'))), 'SECTEUR'] = 'FSP'
+    df.loc[((df['UP'] == 'VX2') & (df['WORK_ZONE'] == 'VX2 GZ-')), 'SECTEUR'] = 'FSP'
+    df.loc[((df['UP'] == 'VX2') & (df['WORK_ZONE'] == 'VX2B-DOC')), 'SECTEUR'] = 'FSP'
+    df.loc[((df['UP'] == 'VX2') & (df['WORK_ZONE'] == 'VX2R')), 'SECTEUR'] = 'FSP'
+    df.loc[((df['UP'] == 'VX2') & (df['WORK_ZONE'] == 'VX2P-DOC')), 'SECTEUR'] = 'FSP'
+    df.loc[((df['UP'] == 'VX2') & (df['WORK_ZONE'] == 'VX2B')), 'SECTEUR'] = 'REA'
+    df.loc[((df['UP'] == 'VX2') & (df['WORK_ZONE'] == 'VX2P')), 'SECTEUR'] = 'REA'
     # Calcul du retard (en jours)
     aujourdhui = dt.datetime.today().date()
     df['SHIP_BY_DATE'] = pd.to_datetime(df['SHIP_BY_DATE'], yearfirst = True)
@@ -293,33 +332,33 @@ def update_layout(n):
     df['WORK_GROUP_2'] = df['WORK_GROUP'].str[:10] + '-' + df['CONSIGNMENT_TIME']
     df.loc[df['WORK_GROUP'].str.contains('^500'), 'WORK_GROUP_2'] = df['WORK_GROUP'].str[:10]
     # Restriction aux champs utiles
-    df = df.drop(['CONSIGNMENT_TIME', 'PRINT_LABEL_ID', 'WORK_ZONE', 'WORK_GROUP', 'SHIP_BY_DATE', 'GAP', 'STATUS'], axis = 1)
+    df = df.drop(['CONSIGNMENT_TIME', 'PRINT_LABEL_ID', 'WORK_ZONE', 'WORK_GROUP', 'SHIP_BY_DATE', 'GAP', 'STATUS', 'UP'], axis = 1)
     df.rename({'WORK_GROUP_2' : 'WORK_GROUP'}, axis = 1, inplace = True)
     # Définition des données pour les visuels
-    affichage = df.groupby(['UP', 'ORDER_TYPE', 'SECTEUR', 'WORK_GROUP', 'BACKLOG']).size().reset_index()
+    affichage = df.groupby(['ORDER_TYPE', 'SECTEUR', 'WORK_GROUP', 'BACKLOG']).size().reset_index()
     affichage.rename({0 : 'Lines'}, axis = 1, inplace = True)
     # Définition du visuel à afficher (figure)
     urg_J0 = go.Bar(
                     name = 'J',
-                    x = affichage['Lines'][(affichage['UP']=='VX2') & (affichage['SECTEUR']=='PIGO') & (affichage['ORDER_TYPE']=='Urgent') & (affichage['BACKLOG']=='J')],
-                    y = affichage['WORK_GROUP'][(affichage['UP']=='VX2') & (affichage['SECTEUR']=='PIGO') & (affichage['ORDER_TYPE']=='Urgent') & (affichage['BACKLOG']=='J')],
-                    text = affichage['Lines'][(affichage['UP']=='VX2') & (affichage['SECTEUR']=='PIGO') & (affichage['ORDER_TYPE']=='Urgent') & (affichage['BACKLOG']=='J')],
+                    x = affichage['Lines'][(affichage['SECTEUR'].isin(secteur)) & (affichage['ORDER_TYPE']=='Urgent') & (affichage['BACKLOG']=='J')],
+                    y = affichage['WORK_GROUP'][(affichage['SECTEUR'].isin(secteur)) & (affichage['ORDER_TYPE']=='Urgent') & (affichage['BACKLOG']=='J')],
+                    text = affichage['Lines'][(affichage['SECTEUR'].isin(secteur)) & (affichage['ORDER_TYPE']=='Urgent') & (affichage['BACKLOG']=='J')],
                     orientation = 'h',
                     marker = dict (color = '#00ff00')
                     )
     urg_J1 = go.Bar(
                     name = 'J+1',
-                    x = affichage['Lines'][(affichage['UP']=='VX2') & (affichage['SECTEUR']=='PIGO') & (affichage['ORDER_TYPE']=='Urgent') & (affichage['BACKLOG']=='J+1')],
-                    y = affichage['WORK_GROUP'][(affichage['UP']=='VX2') & (affichage['SECTEUR']=='PIGO') & (affichage['ORDER_TYPE']=='Urgent') & (affichage['BACKLOG']=='J+1')],
-                    text = affichage['Lines'][(affichage['UP']=='VX2') & (affichage['SECTEUR']=='PIGO') & (affichage['ORDER_TYPE']=='Urgent') & (affichage['BACKLOG']=='J+1')],
+                    x = affichage['Lines'][(affichage['SECTEUR'].isin(secteur)) & (affichage['ORDER_TYPE']=='Urgent') & (affichage['BACKLOG']=='J+1')],
+                    y = affichage['WORK_GROUP'][(affichage['SECTEUR'].isin(secteur)) & (affichage['ORDER_TYPE']=='Urgent') & (affichage['BACKLOG']=='J+1')],
+                    text = affichage['Lines'][(affichage['SECTEUR'].isin(secteur)) & (affichage['ORDER_TYPE']=='Urgent') & (affichage['BACKLOG']=='J+1')],
                     orientation = 'h',
                     marker = dict (color = '#bbbbbb')
                     )
     urg_Ret = go.Bar(
                     name = 'Retard',
-                    x = affichage['Lines'][(affichage['UP']=='VX2') & (affichage['SECTEUR']=='PIGO') & (affichage['ORDER_TYPE']=='Urgent') & (affichage['BACKLOG']=='Retard')],
-                    y = affichage['WORK_GROUP'][(affichage['UP']=='VX2') & (affichage['SECTEUR']=='PIGO') & (affichage['ORDER_TYPE']=='Urgent') & (affichage['BACKLOG']=='Retard')],
-                    text = affichage['Lines'][(affichage['UP']=='VX2') & (affichage['SECTEUR']=='PIGO') & (affichage['ORDER_TYPE']=='Urgent') & (affichage['BACKLOG']=='Retard')],
+                    x = affichage['Lines'][(affichage['SECTEUR'].isin(secteur)) & (affichage['ORDER_TYPE']=='Urgent') & (affichage['BACKLOG']=='Retard')],
+                    y = affichage['WORK_GROUP'][(affichage['SECTEUR'].isin(secteur)) & (affichage['ORDER_TYPE']=='Urgent') & (affichage['BACKLOG']=='Retard')],
+                    text = affichage['Lines'][(affichage['SECTEUR'].isin(secteur)) & (affichage['ORDER_TYPE']=='Urgent') & (affichage['BACKLOG']=='Retard')],
                     orientation = 'h',
                     marker = dict (color = '#ff0000')
                     )
@@ -341,8 +380,9 @@ def update_layout(n):
 
 # Refresh écran Andon URGENT SUMMARY
 @callback(Output('Andon-outlinesvx2-urg-sum', 'figure'),
-              [Input('interval-outlinesvx2', 'n_intervals')])
-def update_layout(n):
+              [Input('interval-outlinesvx2', 'n_intervals'),
+              Input('checklist-outlinesvx2', 'value')])
+def update_layout(n, secteur):
     # Connection BD
     conn = wms2.connect()
     # Execution requête
@@ -353,18 +393,27 @@ def update_layout(n):
     conn.commit()
     conn.close()
     # correction périmètre des UP
+    df['UP'].replace(to_replace = ['VX1-ANNEX'], value = ['VX1'], inplace = True)
     df['UP'].replace(to_replace = ['GLPB'], value = ['VX2'], inplace = True)
     # définition des secteurs
-    df['SECTEUR'] = 'PIGO'
-    df.loc[df['WORK_ZONE'] == 'PBGL', 'SECTEUR'] = 'PB'
-    df.loc[df['WORK_ZONE'].str.contains('^(AEC)'), 'SECTEUR'] = 'AEC'
-    df.loc[df['WORK_GROUP'].str.contains('^5'), 'SECTEUR'] = 'FSP'
-    df.loc[df['WORK_ZONE'] == 'VX2 GZ-', 'SECTEUR'] = 'FSP'
-    df.loc[df['WORK_ZONE'] == 'VX2B-DOC', 'SECTEUR'] = 'FSP'
-    df.loc[df['WORK_ZONE'] == 'VX2R', 'SECTEUR'] = 'FSP'
-    df.loc[df['WORK_ZONE'] == 'VX2P-DOC', 'SECTEUR'] = 'FSP'
-    df.loc[df['WORK_ZONE'] == 'VX2B', 'SECTEUR'] = 'REA'
-    df.loc[df['WORK_ZONE'] == 'VX2P', 'SECTEUR'] = 'REA'
+    df['SECTEUR'] = 'Autres'
+    # VX1
+    df.loc[df['UP'] == 'VX1', 'SECTEUR'] = 'VX1'
+    df.loc[((df['UP'] == 'VX1') & (df['WORK_ZONE'] == 'DE5')), 'SECTEUR'] = 'DE5'
+    df.loc[((df['UP'] == 'VX1') & (df['WORK_ZONE'] == 'WS-DE5')), 'SECTEUR'] = 'DE5'
+    df.loc[((df['UP'] == 'VX1') & (df['WORK_ZONE'] == 'DE6')), 'SECTEUR'] = 'DE5'
+    df.loc[((df['UP'] == 'VX1') & (df['WORK_ZONE'] == 'WS-DE6')), 'SECTEUR'] = 'DE5'
+    # VX2
+    df.loc[df['UP'] == 'VX2', 'SECTEUR'] = 'PIGO'
+    df.loc[((df['UP'] == 'VX2') & (df['WORK_ZONE'] == 'PBGL')), 'SECTEUR'] = 'PB'
+    df.loc[((df['UP'] == 'VX2') & (df['WORK_ZONE'].str.contains('^(AEC)'))), 'SECTEUR'] = 'AEC'
+    df.loc[((df['UP'] == 'VX2') & (df['WORK_GROUP'].str.contains('^5'))), 'SECTEUR'] = 'FSP'
+    df.loc[((df['UP'] == 'VX2') & (df['WORK_ZONE'] == 'VX2 GZ-')), 'SECTEUR'] = 'FSP'
+    df.loc[((df['UP'] == 'VX2') & (df['WORK_ZONE'] == 'VX2B-DOC')), 'SECTEUR'] = 'FSP'
+    df.loc[((df['UP'] == 'VX2') & (df['WORK_ZONE'] == 'VX2R')), 'SECTEUR'] = 'FSP'
+    df.loc[((df['UP'] == 'VX2') & (df['WORK_ZONE'] == 'VX2P-DOC')), 'SECTEUR'] = 'FSP'
+    df.loc[((df['UP'] == 'VX2') & (df['WORK_ZONE'] == 'VX2B')), 'SECTEUR'] = 'REA'
+    df.loc[((df['UP'] == 'VX2') & (df['WORK_ZONE'] == 'VX2P')), 'SECTEUR'] = 'REA'
     # Calcul du retard (en jours)
     aujourdhui = dt.datetime.today().date()
     df['SHIP_BY_DATE'] = pd.to_datetime(df['SHIP_BY_DATE'], yearfirst = True)
@@ -382,11 +431,11 @@ def update_layout(n):
         maintenant = '0' + maintenant
     df.loc[(df['BACKLOG'] == 'J') & (df['CONSIGNMENT_TIME'] < maintenant), 'BACKLOG'] = 'Retard'
     # Définition des données pour les visuels
-    retard = len(df[(df['UP']=='VX2')&(df['ORDER_TYPE']=='Urgent')&(df['SECTEUR']=='PIGO')&(df['BACKLOG']=='Retard')])
-    jour = len(df[(df['UP']=='VX2')&(df['ORDER_TYPE']=='Urgent')&(df['SECTEUR']=='PIGO')&(df['BACKLOG']=='J')])
-    lendemain = len(df[(df['UP']=='VX2')&(df['ORDER_TYPE']=='Urgent')&(df['SECTEUR']=='PIGO')&(df['BACKLOG']=='J+1')])
-    total = len(df[(df['UP']=='VX2')&(df['ORDER_TYPE']=='Urgent')&(df['SECTEUR']=='PIGO')])
-    erreur = len(df[(df['UP']=='VX2')&(df['ORDER_TYPE']=='Urgent')&(df['SECTEUR']=='PIGO')&(df['STATUS']=='Error')]) 
+    retard = len(df[(df['ORDER_TYPE']=='Urgent')&(df['SECTEUR'].isin(secteur))&(df['BACKLOG']=='Retard')])
+    jour = len(df[(df['ORDER_TYPE']=='Urgent')&(df['SECTEUR'].isin(secteur))&(df['BACKLOG']=='J')])
+    lendemain = len(df[(df['ORDER_TYPE']=='Urgent')&(df['SECTEUR'].isin(secteur))&(df['BACKLOG']=='J+1')])
+    total = len(df[(df['ORDER_TYPE']=='Urgent')&(df['SECTEUR'].isin(secteur))])
+    erreur = len(df[(df['ORDER_TYPE']=='Urgent')&(df['SECTEUR'].isin(secteur))&(df['STATUS']=='Error')]) 
     # Définition du visuel à afficher (figure)
     trace = go.Table(
                     columnwidth = [25, 25, 25, 25, 25],
