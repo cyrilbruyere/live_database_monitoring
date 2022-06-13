@@ -3,8 +3,9 @@
 # maj : 22.5.6
 
 from dash import Dash, dcc, html, Input, Output, callback
+from bin import outlinesvx2
 # Liste des pages à afficher
-from pages import consovx2, packsize, outlinesvx2
+from pages import consovx2, packsize, outlines
 
 app = Dash(__name__, suppress_callback_exceptions=True)
 app.title = 'Andons DC Lyon'
@@ -25,6 +26,8 @@ def display_page(pathname):
         return packsize.layout
     elif pathname == '/outlinesvx2':
         return outlinesvx2.layout
+    elif pathname == '/outlines':
+        return outlines.layout
     else:
         return '404'
 

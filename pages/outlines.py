@@ -1,3 +1,4 @@
+
 # -*- coding: utf-8 -*-
 # author: cyrilbruyere
 # maj : 22.5.6
@@ -46,13 +47,13 @@ colonnes = ['WORK_GROUP', 'STATUS', 'CONSIGNMENT_TIME', 'PRINT_LABEL_ID', 'WORK_
 
 # Définition de l'affichage et intervalle de refresh
 layout = html.Div([
-    html.A( id='datetime-outlinesvx2',
-            href='https://qlikview.srv.volvo.com/QvAJAXZfc/opendoc.htm?document=gto-sbi-wms2\\vx2%20outbound%20following%20-%20lines%20productivity.qvw&lang=en-US&host=QVS%40Cluster',
+    html.A( id='datetime-outlines',
+            href='https://qlikview.srv.volvo.com/QvAJAXZfc/opendoc.htm?document=gto-sbi-wms2%5Coutlines.qvw&lang=en-US&host=QVS%40Cluster',
             target='_blank',
             style = {'color' : '#ECECEC', 'text-align' : 'center', 'font-size' : 28}),
     html.Div([
                 dcc.Checklist(
-                    id = 'checklist-outlinesvx2',
+                    id = 'checklist-outlines',
                     options = ['VX1', 'DE5', 'PIGO', 'FSP', 'PB', 'AEC', 'REA', 'Autres'],
                     value = ['PIGO'],
                     inline = True,
@@ -62,35 +63,36 @@ layout = html.Div([
     html.Hr(),
     html.Div([
         html.Div([
-                dcc.Interval(id='interval-outlinesvx2',
+                dcc.Interval(id='interval-outlines',
                             interval=30000, # milliseconds
                             n_intervals=0
                             ),
-                dcc.Graph(id='Andon-outlinesvx2-reg'),
-                dcc.Graph(id='Andon-outlinesvx2-reg-sum')
+                dcc.Graph(id='Andon-outlines-reg'),
+                dcc.Graph(id='Andon-outlines-reg-sum')
                 ], style={'width' : '49%',
                           'display' : 'inline-block'}),
         html.Div([
-                dcc.Graph(id='Andon-outlinesvx2-urg'),
-                dcc.Graph(id='Andon-outlinesvx2-urg-sum')
+                dcc.Graph(id='Andon-outlines-urg'),
+                dcc.Graph(id='Andon-outlines-urg-sum'),
+                dcc.Store(id='memory-outlines', data=[], storage_type='local')
                 ], style={'width' : '49%',
                           'display' : 'inline-block'})        
             ])
                     ], style={  'backgroundColor' : '#000000',
                                 'text-align' : 'center'
                              })
+
 # Refresh automatique date
-@callback(Output('datetime-outlinesvx2', 'children'),
-              [Input('interval-outlinesvx2', 'n_intervals')])
+@callback(Output('datetime-outlines', 'children'),
+              [Input('interval-outlines', 'n_intervals')])
 def update_time(n):
     refresh_time = dt.datetime.now().strftime("%d-%m-%Y %H:%M:%S")
     return '{}'.format(refresh_time)
 
-# Refresh écran Andon REGULIER
-@callback(Output('Andon-outlinesvx2-reg', 'figure'),
-              [Input('interval-outlinesvx2', 'n_intervals'),
-              Input('checklist-outlinesvx2', 'value')])
-def update_layout(n, secteur):
+# Refresh data
+@callback([Output('memory-outlines', 'data'),
+           Input('interval-outlines', 'n_intervals')])
+def store_data(n):
     # Connection BD
     conn = wms2.connect()
     # Execution requête
@@ -138,6 +140,16 @@ def update_layout(n, secteur):
     if len(maintenant) == 3:
         maintenant = '0' + maintenant
     df.loc[(df['BACKLOG'] == 'J') & (df['CONSIGNMENT_TIME'] < maintenant), 'BACKLOG'] = 'Retard'
+    return [df.to_dict()]
+
+# Refresh écran Andon REGULIER
+@callback(Output('Andon-outlines-reg', 'figure'),
+              [Input('memory-outlines', 'data'),
+              Input('checklist-outlines', 'value')
+              ])
+def update_graf_reg(donnees, secteur):
+    # Restriction aux champs utiles
+    df = pd.DataFrame.from_dict(donnees)
     # Regrouper les WORK_GROUP avec l'heure mini de consignment
     df_wg_min_time = df[['WORK_GROUP', 'CONSIGNMENT_TIME']]
     df_wg_min_time = df_wg_min_time.groupby(['WORK_GROUP']).min()
@@ -147,7 +159,6 @@ def update_layout(n, secteur):
     # Ajout de l'heure de consignment au work_group 
     df['WORK_GROUP_2'] = df['WORK_GROUP'].str[:10] + '-' + df['MIN_TIME']
     df.loc[df['WORK_GROUP'].str.contains('^500'), 'WORK_GROUP_2'] = df['WORK_GROUP'].str[:5] + '-' + df['WORK_GROUP'].str[6:10]
-    # Restriction aux champs utiles
     df = df.drop(['CONSIGNMENT_TIME', 'MIN_TIME', 'PRINT_LABEL_ID', 'WORK_ZONE', 'WORK_GROUP', 'SHIP_BY_DATE', 'GAP', 'STATUS', 'UP'], axis = 1)
     df.rename({'WORK_GROUP_2' : 'WORK_GROUP'}, axis = 1, inplace = True)
     # Définition des données pour les visuels
@@ -195,58 +206,13 @@ def update_layout(n, secteur):
     }
 
 # Refresh écran Andon REGULIER SUMMARY
-@callback(Output('Andon-outlinesvx2-reg-sum', 'figure'),
-              [Input('interval-outlinesvx2', 'n_intervals'),
-              Input('checklist-outlinesvx2', 'value')])
-def update_layout(n, secteur):
-    # Connection BD
-    conn = wms2.connect()
-    # Execution requête
-    cursor = conn.cursor()
-    cursor.execute(query)
-    df = pd.DataFrame(cursor.fetchall(), columns = colonnes)
-    # Fermeture connection
-    conn.commit()
-    conn.close()
-    # correction périmètre des UP
-    df['UP'].replace(to_replace = ['VX1-ANNEX'], value = ['VX1'], inplace = True)
-    df['UP'].replace(to_replace = ['GLPB'], value = ['VX2'], inplace = True)
-    # définition des secteurs
-    df['SECTEUR'] = 'Autres'
-    # VX1
-    df.loc[df['UP'] == 'VX1', 'SECTEUR'] = 'VX1'
-    df.loc[((df['UP'] == 'VX1') & (df['WORK_ZONE'] == 'DE5')), 'SECTEUR'] = 'DE5'
-    df.loc[((df['UP'] == 'VX1') & (df['WORK_ZONE'] == 'WS-DE5')), 'SECTEUR'] = 'DE5'
-    df.loc[((df['UP'] == 'VX1') & (df['WORK_ZONE'] == 'DE6')), 'SECTEUR'] = 'DE5'
-    df.loc[((df['UP'] == 'VX1') & (df['WORK_ZONE'] == 'WS-DE6')), 'SECTEUR'] = 'DE5'
-    # VX2
-    df.loc[df['UP'] == 'VX2', 'SECTEUR'] = 'PIGO'
-    df.loc[((df['UP'] == 'VX2') & (df['WORK_ZONE'] == 'PBGL')), 'SECTEUR'] = 'PB'
-    df.loc[((df['UP'] == 'VX2') & (df['WORK_ZONE'].str.contains('^(AEC)'))), 'SECTEUR'] = 'AEC'
-    df.loc[((df['UP'] == 'VX2') & (df['WORK_GROUP'].str.contains('^5'))), 'SECTEUR'] = 'FSP'
-    df.loc[((df['UP'] == 'VX2') & (df['WORK_ZONE'] == 'VX2 GZ-')), 'SECTEUR'] = 'FSP'
-    df.loc[((df['UP'] == 'VX2') & (df['WORK_ZONE'] == 'VX2B-DOC')), 'SECTEUR'] = 'FSP'
-    df.loc[((df['UP'] == 'VX2') & (df['WORK_ZONE'] == 'VX2R')), 'SECTEUR'] = 'FSP'
-    df.loc[((df['UP'] == 'VX2') & (df['WORK_ZONE'] == 'VX2P-DOC')), 'SECTEUR'] = 'FSP'
-    df.loc[((df['UP'] == 'VX2') & (df['WORK_ZONE'] == 'VX2B')), 'SECTEUR'] = 'REA'
-    df.loc[((df['UP'] == 'VX2') & (df['WORK_ZONE'] == 'VX2P')), 'SECTEUR'] = 'REA'
-    # Calcul du retard (en jours)
-    aujourdhui = dt.datetime.today().date()
-    df['SHIP_BY_DATE'] = pd.to_datetime(df['SHIP_BY_DATE'], yearfirst = True)
-    df['SHIP_BY_DATE'] = df['SHIP_BY_DATE'].apply(lambda x: x.date())
-    df['GAP'] = df['SHIP_BY_DATE'].apply(lambda x: (x - aujourdhui).days)
-    df['BACKLOG'] = 'J+1'
-    df.loc[df['GAP'] < 0, 'BACKLOG'] = 'Retard'
-    df.loc[df['GAP'] == 0, 'BACKLOG'] = 'J'
-    # Gestion spécifique pour les KITS
-    df.loc[df['CONSIGNMENT_TIME'] == 'KTS-', 'BACKLOG'] = 'J+1'
-    # Calcul du retard lié à l'heure de mise à quai
-    maintenant = dt.datetime.now().hour * 100 + dt.datetime.now().minute
-    maintenant = str(maintenant)
-    if len(maintenant) == 3:
-        maintenant = '0' + maintenant
-    df.loc[(df['BACKLOG'] == 'J') & (df['CONSIGNMENT_TIME'] < maintenant), 'BACKLOG'] = 'Retard'
+@callback(Output('Andon-outlines-reg-sum', 'figure'),
+              [Input('memory-outlines', 'data'),
+              Input('checklist-outlines', 'value')
+              ])
+def update_summ_reg(donnees, secteur):
     # Définition des données pour les visuels
+    df = pd.DataFrame.from_dict(donnees)
     retard = len(df[(df['ORDER_TYPE']=='Régulier')&(df['SECTEUR'].isin(secteur))&(df['BACKLOG']=='Retard')])
     jour = len(df[(df['ORDER_TYPE']=='Régulier')&(df['SECTEUR'].isin(secteur))&(df['BACKLOG']=='J')])
     lendemain = len(df[(df['ORDER_TYPE']=='Régulier')&(df['SECTEUR'].isin(secteur))&(df['BACKLOG']=='J+1')])
@@ -256,7 +222,7 @@ def update_layout(n, secteur):
     trace = go.Table(
                     columnwidth = [25, 25, 25, 25, 25],
                     header = dict(  values = ['Retard', 'J', 'J+1', 'Total', 'Erreur'],
-                                    fill = dict(color=['#FF0000', '#00FF00', '#BBBBBB', '#000000', '#FFFF00']),
+                                    fill = dict(color=['#FF0000', '#00FF00', '#BBBBBB', '#000000', '#FDEE00']),
                                     line = dict(color='#777777', width=1),
                                     font = dict(color = '#ECECEC', size = 20),
                                     align = ['center'],
@@ -279,55 +245,12 @@ def update_layout(n, secteur):
     }
 
 # Refresh écran Andon URGENT
-@callback(Output('Andon-outlinesvx2-urg', 'figure'),
-              [Input('interval-outlinesvx2', 'n_intervals'),
-              Input('checklist-outlinesvx2', 'value')])
-def update_layout(n, secteur):
-    # Connection BD
-    conn = wms2.connect()
-    # Execution requête
-    cursor = conn.cursor()
-    cursor.execute(query)
-    df = pd.DataFrame(cursor.fetchall(), columns = colonnes)
-    # Fermeture connection
-    conn.commit()
-    conn.close()
-    # correction périmètre des UP
-    df['UP'].replace(to_replace = ['VX1-ANNEX'], value = ['VX1'], inplace = True)
-    df['UP'].replace(to_replace = ['GLPB'], value = ['VX2'], inplace = True)
-    # définition des secteurs
-    df['SECTEUR'] = 'Autres'
-    # VX1
-    df.loc[df['UP'] == 'VX1', 'SECTEUR'] = 'VX1'
-    df.loc[((df['UP'] == 'VX1') & (df['WORK_ZONE'] == 'DE5')), 'SECTEUR'] = 'DE5'
-    df.loc[((df['UP'] == 'VX1') & (df['WORK_ZONE'] == 'WS-DE5')), 'SECTEUR'] = 'DE5'
-    df.loc[((df['UP'] == 'VX1') & (df['WORK_ZONE'] == 'DE6')), 'SECTEUR'] = 'DE5'
-    df.loc[((df['UP'] == 'VX1') & (df['WORK_ZONE'] == 'WS-DE6')), 'SECTEUR'] = 'DE5'
-    # VX2
-    df.loc[df['UP'] == 'VX2', 'SECTEUR'] = 'PIGO'
-    df.loc[((df['UP'] == 'VX2') & (df['WORK_ZONE'] == 'PBGL')), 'SECTEUR'] = 'PB'
-    df.loc[((df['UP'] == 'VX2') & (df['WORK_ZONE'].str.contains('^(AEC)'))), 'SECTEUR'] = 'AEC'
-    df.loc[((df['UP'] == 'VX2') & (df['WORK_GROUP'].str.contains('^5'))), 'SECTEUR'] = 'FSP'
-    df.loc[((df['UP'] == 'VX2') & (df['WORK_ZONE'] == 'VX2 GZ-')), 'SECTEUR'] = 'FSP'
-    df.loc[((df['UP'] == 'VX2') & (df['WORK_ZONE'] == 'VX2B-DOC')), 'SECTEUR'] = 'FSP'
-    df.loc[((df['UP'] == 'VX2') & (df['WORK_ZONE'] == 'VX2R')), 'SECTEUR'] = 'FSP'
-    df.loc[((df['UP'] == 'VX2') & (df['WORK_ZONE'] == 'VX2P-DOC')), 'SECTEUR'] = 'FSP'
-    df.loc[((df['UP'] == 'VX2') & (df['WORK_ZONE'] == 'VX2B')), 'SECTEUR'] = 'REA'
-    df.loc[((df['UP'] == 'VX2') & (df['WORK_ZONE'] == 'VX2P')), 'SECTEUR'] = 'REA'
-    # Calcul du retard (en jours)
-    aujourdhui = dt.datetime.today().date()
-    df['SHIP_BY_DATE'] = pd.to_datetime(df['SHIP_BY_DATE'], yearfirst = True)
-    df['SHIP_BY_DATE'] = df['SHIP_BY_DATE'].apply(lambda x: x.date())
-    df['GAP'] = df['SHIP_BY_DATE'].apply(lambda x: (x - aujourdhui).days)
-    df['BACKLOG'] = 'J+1'
-    df.loc[df['GAP'] < 0, 'BACKLOG'] = 'Retard'
-    df.loc[df['GAP'] == 0, 'BACKLOG'] = 'J'
-    # Calcul du retard lié à l'heure de mise à quai
-    maintenant = dt.datetime.now().hour * 100 + dt.datetime.now().minute
-    maintenant = str(maintenant)
-    if len(maintenant) == 3:
-        maintenant = '0' + maintenant
-    df.loc[(df['BACKLOG'] == 'J') & (df['CONSIGNMENT_TIME'] < maintenant), 'BACKLOG'] = 'Retard'
+@callback(Output('Andon-outlines-urg', 'figure'),
+              [Input('memory-outlines', 'data'),
+              Input('checklist-outlines', 'value')
+              ])
+def update_graf_urg(donnees, secteur):
+    df = pd.DataFrame.from_dict(donnees)
     # Ajout de l'heure de consignment au work_group
     df['WORK_GROUP_2'] = df['WORK_GROUP'].str[:10] + '-' + df['CONSIGNMENT_TIME']
     df.loc[df['WORK_GROUP'].str.contains('^500'), 'WORK_GROUP_2'] = df['WORK_GROUP'].str[:10]
@@ -379,57 +302,12 @@ def update_layout(n, secteur):
     }    
 
 # Refresh écran Andon URGENT SUMMARY
-@callback(Output('Andon-outlinesvx2-urg-sum', 'figure'),
-              [Input('interval-outlinesvx2', 'n_intervals'),
-              Input('checklist-outlinesvx2', 'value')])
-def update_layout(n, secteur):
-    # Connection BD
-    conn = wms2.connect()
-    # Execution requête
-    cursor = conn.cursor()
-    cursor.execute(query)
-    df = pd.DataFrame(cursor.fetchall(), columns = colonnes)
-    # Fermeture connection
-    conn.commit()
-    conn.close()
-    # correction périmètre des UP
-    df['UP'].replace(to_replace = ['VX1-ANNEX'], value = ['VX1'], inplace = True)
-    df['UP'].replace(to_replace = ['GLPB'], value = ['VX2'], inplace = True)
-    # définition des secteurs
-    df['SECTEUR'] = 'Autres'
-    # VX1
-    df.loc[df['UP'] == 'VX1', 'SECTEUR'] = 'VX1'
-    df.loc[((df['UP'] == 'VX1') & (df['WORK_ZONE'] == 'DE5')), 'SECTEUR'] = 'DE5'
-    df.loc[((df['UP'] == 'VX1') & (df['WORK_ZONE'] == 'WS-DE5')), 'SECTEUR'] = 'DE5'
-    df.loc[((df['UP'] == 'VX1') & (df['WORK_ZONE'] == 'DE6')), 'SECTEUR'] = 'DE5'
-    df.loc[((df['UP'] == 'VX1') & (df['WORK_ZONE'] == 'WS-DE6')), 'SECTEUR'] = 'DE5'
-    # VX2
-    df.loc[df['UP'] == 'VX2', 'SECTEUR'] = 'PIGO'
-    df.loc[((df['UP'] == 'VX2') & (df['WORK_ZONE'] == 'PBGL')), 'SECTEUR'] = 'PB'
-    df.loc[((df['UP'] == 'VX2') & (df['WORK_ZONE'].str.contains('^(AEC)'))), 'SECTEUR'] = 'AEC'
-    df.loc[((df['UP'] == 'VX2') & (df['WORK_GROUP'].str.contains('^5'))), 'SECTEUR'] = 'FSP'
-    df.loc[((df['UP'] == 'VX2') & (df['WORK_ZONE'] == 'VX2 GZ-')), 'SECTEUR'] = 'FSP'
-    df.loc[((df['UP'] == 'VX2') & (df['WORK_ZONE'] == 'VX2B-DOC')), 'SECTEUR'] = 'FSP'
-    df.loc[((df['UP'] == 'VX2') & (df['WORK_ZONE'] == 'VX2R')), 'SECTEUR'] = 'FSP'
-    df.loc[((df['UP'] == 'VX2') & (df['WORK_ZONE'] == 'VX2P-DOC')), 'SECTEUR'] = 'FSP'
-    df.loc[((df['UP'] == 'VX2') & (df['WORK_ZONE'] == 'VX2B')), 'SECTEUR'] = 'REA'
-    df.loc[((df['UP'] == 'VX2') & (df['WORK_ZONE'] == 'VX2P')), 'SECTEUR'] = 'REA'
-    # Calcul du retard (en jours)
-    aujourdhui = dt.datetime.today().date()
-    df['SHIP_BY_DATE'] = pd.to_datetime(df['SHIP_BY_DATE'], yearfirst = True)
-    df['SHIP_BY_DATE'] = df['SHIP_BY_DATE'].apply(lambda x: x.date())
-    df['GAP'] = df['SHIP_BY_DATE'].apply(lambda x: (x - aujourdhui).days)
-    df['BACKLOG'] = 'J+1'
-    df.loc[df['GAP'] < 0, 'BACKLOG'] = 'Retard'
-    df.loc[df['GAP'] == 0, 'BACKLOG'] = 'J'
-    # Gestion spécifique pour les KITS
-    df.loc[df['CONSIGNMENT_TIME'] == 'KTS-', 'BACKLOG'] = 'J+1'
-    # Calcul du retard lié à l'heure de mise à quai
-    maintenant = dt.datetime.now().hour * 100 + dt.datetime.now().minute
-    maintenant = str(maintenant)
-    if len(maintenant) == 3:
-        maintenant = '0' + maintenant
-    df.loc[(df['BACKLOG'] == 'J') & (df['CONSIGNMENT_TIME'] < maintenant), 'BACKLOG'] = 'Retard'
+@callback(Output('Andon-outlines-urg-sum', 'figure'),
+              [Input('memory-outlines', 'data'),
+              Input('checklist-outlines', 'value')
+              ])
+def update_summ_urg(donnees, secteur):
+    df = pd.DataFrame.from_dict(donnees)
     # Définition des données pour les visuels
     retard = len(df[(df['ORDER_TYPE']=='Urgent')&(df['SECTEUR'].isin(secteur))&(df['BACKLOG']=='Retard')])
     jour = len(df[(df['ORDER_TYPE']=='Urgent')&(df['SECTEUR'].isin(secteur))&(df['BACKLOG']=='J')])
@@ -440,7 +318,7 @@ def update_layout(n, secteur):
     trace = go.Table(
                     columnwidth = [25, 25, 25, 25, 25],
                     header = dict(  values = ['Retard', 'J', 'J+1', 'Total', 'Erreur'],
-                                    fill = dict(color=['#FF0000', '#00FF00', '#BBBBBB', '#000000', '#FFFF00']),
+                                    fill = dict(color=['#FF0000', '#00FF00', '#BBBBBB', '#000000', '#FDEE00']),
                                     line = dict(color='#777777', width=1),
                                     font = dict(color = '#ECECEC', size = 20),
                                     align = ['center'],
