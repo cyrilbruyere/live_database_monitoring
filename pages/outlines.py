@@ -52,13 +52,24 @@ layout = html.Div([
             target='_blank',
             style = {'color' : '#ECECEC', 'text-align' : 'center', 'font-size' : 28}),
     html.Div([
-                dcc.Checklist(
+        html.Div(id='Régulier', children='Régulier', style={'width' : '33%',
+                                                            'display' : 'inline-block',
+                                                            'color' : '#ECECEC',
+                                                            'text-align' : 'center',
+                                                            'font-size' : 40}),
+        html.Div(
+            dcc.Checklist(
                     id = 'checklist-outlines',
                     options = ['VX1', 'DE5', 'PIGO', 'FSP', 'PB', 'AEC', 'REA', 'Autres'],
                     value = ['PIGO'],
                     inline = True,
-                    labelStyle = {'color': '#ECECEC'}
-                )
+                    labelStyle = {'color': '#ECECEC'}), style={'width' : '33%',
+                                                               'display' : 'inline-block'}),
+        html.Div(id='Urgent', children='Urgent', style={'width' : '33%',
+                                                        'display' : 'inline-block',
+                                                        'color' : '#ECECEC',
+                                                        'text-align' : 'center',
+                                                        'font-size' : 40})
             ]),
     html.Hr(),
     html.Div([
@@ -196,7 +207,7 @@ def update_graf_reg(donnees, secteur):
                        font_color = '#ECECEC',
                        font_size = 18,
                        yaxis = {'categoryorder' : 'category descending'},
-                       title = 'Régulier',
+                       # title = 'Régulier',
                        titlefont_size = 24,
                        height = 700,
                        margin = dict(l=150, r=5, t=35, b=0))
@@ -292,7 +303,7 @@ def update_graf_urg(donnees, secteur):
                        font_color = '#ECECEC',
                        font_size = 18,
                        yaxis = {'categoryorder' : 'category descending'},
-                       title = 'Urgent',
+                       # title = 'Urgent',
                        titlefont_size = 24,
                        height = 700,
                        margin = dict(l=150, r=5, t=35, b=0))
@@ -336,6 +347,6 @@ def update_summ_urg(donnees, secteur):
         'layout' : {
             'paper_bgcolor' : '#000000',
             'height' : 110,
-            'margin' : dict(l=150, r=100, t=40, b=0)
+            'margin' : dict(l=150, r=75, t=40, b=0)
         }
     }
