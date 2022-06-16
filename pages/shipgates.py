@@ -18,8 +18,6 @@ query = """
 SELECT  DISTINCT
         SUBSTR(mt.consignment, 6, 99) AS CONSIGNMENT,
         mt.pallet_id,
-        --mt.final_loc_id,
-        --mt.from_loc_id,
         CASE WHEN SUBSTR(mt.from_loc_id, 1, 4) = 'QUAI' THEN SUBSTR(mt.from_loc_id, -1, 1)
              WHEN SUBSTR(mt.from_loc_id, 1, 2) = 'WT' THEN SUBSTR(mt.to_loc_id, -1, 1)
              END AS VOIE,
@@ -27,22 +25,18 @@ SELECT  DISTINCT
              WHEN SUBSTR(mt.from_loc_id, 1, 6) = 'WT-VX1' THEN 'VX1'
              WHEN SUBSTR(mt.from_loc_id, 1, 8) = 'WT-VX2-P' THEN 'VX2'
              END AS STATUS,
-        --mt.work_zone,
-        --mt.to_loc_id,
         ct.trailer_id AS TRAILER,
         ct.dock_door_id AS GATE,
         l.user_def_type_6 AS DEPART,
         l.user_def_type_6||' '||SUBSTR(ct.trailer_id, 1, 4) AS CAMION,
         mt.dstamp,
-        SUBSTR(mt.consignment, 6, 1) as COLOR_TYPE--,
-        --CASE WHEN SUBSTR(mt.consignment, 6, 1) = 'D'
-        --     THEN 'Urgent'
-        --     ELSE 'Régulier'
-        --     END AS ORDER_TYPE
+        SUBSTR(mt.consignment, 6, 1) as COLOR_TYPE
 FROM dcsdba.move_task mt
 LEFT JOIN dcsdba.consignment_trailer ct ON (mt.site_id = ct.site_id AND mt.final_loc_id = ct.dock_door_location_id)
 LEFT JOIN dcsdba.location l ON (mt.site_id = l.site_id AND mt.final_loc_id = l.location_id)
 WHERE mt.site_id = 'LDC'
+    AND l.site_id = 'LDC'
+    AND ct.site_id = 'LDC'
     AND l.loc_type = 'ShipDock'
     AND mt.client_id = 'VOLVO'
     AND (SUBSTR(mt.from_loc_id, 1, 4) = 'QUAI' OR mt.from_loc_id = 'WT-VX1' OR mt.from_loc_id = 'WT-VX2-P')
@@ -82,7 +76,7 @@ layout = html.Div([
     html.Div([
         html.Div([
                 dcc.Interval(id='interval-shipgates',
-                            interval=60000, # milliseconds
+                            interval=30000, # milliseconds
                             n_intervals=0
                             ),
                 dcc.Graph(id='Andon-shipgates-left'),
@@ -262,7 +256,7 @@ def update_summ_left(donnees, portes):
     font = table['FONT'].values
     retard = table['LATE'].values
     # Définition des colonnes à afficher
-    shown_columns = ['DEPART', 'TRAILER', 'CONSIGNMENT', 'VOIE', 'VX1', 'VX2', 'QUAI', 'RET', 'TOTAL']
+    shown_columns = ['DEPART', 'TRAILER', 'CONSIGNMENT', 'VOIE', 'VX1', 'VX2', '(J)', '(J+)', 'TOTAL']
     fill_color = []
     font_color = []
     n = len(table)
@@ -270,10 +264,10 @@ def update_summ_left(donnees, portes):
         if col in ['CONSIGNMENT', 'VOIE']:
             fill_color.append(couleur)
             font_color.append(['#ECECEC']*n)
-        elif col in ['QUAI']:
+        elif col in ['(J)']:
             fill_color.append(ontime)
             font_color.append(font)
-        elif col in ['RET']:
+        elif col in ['(J+)']:
             fill_color.append(retard)
             font_color.append(['#ECECEC']*n)
         else:
@@ -287,7 +281,7 @@ def update_summ_left(donnees, portes):
     # Définition du visuel à afficher (figure)
     trace = go.Table(
                     columnwidth = [20, 35, 45, 15, 15, 15, 15, 15, 15],
-                    header = dict(  values = ['DEPART', 'TRAILER', 'CONSIGNMENT', 'VOIE', 'VX1', 'VX2', 'QUAI', 'RET', 'TOTAL'],
+                    header = dict(  values = ['DEPART', 'TRAILER', 'CONSIGNMENT', 'VOIE', 'VX1', 'VX2', '(J)', '(J+)', 'TOTAL'],
                                     fill = dict(color=['#000000', '#000000', '#000000', '#000000', '#000000', '#000000', '#000000', '#000000', '#000000']),
                                     line = dict(color='#777777', width=1),
                                     font = dict(color = '#ECECEC', size = 16),
@@ -419,7 +413,7 @@ def update_summ_right(donnees, portes):
     font = table['FONT'].values
     retard = table['LATE'].values
     # Définition des colonnes à afficher
-    shown_columns = ['DEPART', 'TRAILER', 'CONSIGNMENT', 'VOIE', 'VX1', 'VX2', 'QUAI', 'RET', 'TOTAL']
+    shown_columns = ['DEPART', 'TRAILER', 'CONSIGNMENT', 'VOIE', 'VX1', 'VX2', '(J)', '(J+)', 'TOTAL']
     fill_color = []
     font_color = []
     n = len(table)
@@ -427,10 +421,10 @@ def update_summ_right(donnees, portes):
         if col in ['CONSIGNMENT', 'VOIE']:
             fill_color.append(couleur)
             font_color.append(['#ECECEC']*n)
-        elif col in ['QUAI']:
+        elif col in ['(J)']:
             fill_color.append(ontime)
             font_color.append(font)
-        elif col in ['RET']:
+        elif col in ['(J+)']:
             fill_color.append(retard)
             font_color.append(['#ECECEC']*n)
         else:
@@ -444,7 +438,7 @@ def update_summ_right(donnees, portes):
     # Définition du visuel à afficher (figure)
     trace = go.Table(
                     columnwidth = [20, 35, 45, 15, 15, 15, 15, 15, 15],
-                    header = dict(  values = ['DEPART', 'TRAILER', 'CONSIGNMENT', 'VOIE', 'VX1', 'VX2', 'QUAI', 'RET', 'TOTAL'],
+                    header = dict(  values = ['DEPART', 'TRAILER', 'CONSIGNMENT', 'VOIE', 'VX1', 'VX2', '(J)', '(J+)', 'TOTAL'],
                                     fill = dict(color=['#000000', '#000000', '#000000', '#000000', '#000000', '#000000', '#000000', '#000000', '#000000']),
                                     line = dict(color='#777777', width=1),
                                     font = dict(color = '#ECECEC', size = 16),

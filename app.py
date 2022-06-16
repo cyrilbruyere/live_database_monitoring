@@ -3,9 +3,8 @@
 # maj : 22.5.6
 
 from dash import Dash, dcc, html, Input, Output, callback
-from bin import outlinesvx2
 # Liste des pages à afficher
-from pages import consovx2, packsize, outlines, shipgates
+from pages import consovx2, packsize, outlines, shipgates, pullflow
 
 app = Dash(__name__, suppress_callback_exceptions=True)
 app.title = 'Andons DC Lyon'
@@ -25,11 +24,11 @@ def display_page(pathname):
     elif pathname == '/packsize':
         return packsize.layout
     elif pathname == '/outlinesvx2':
-        return outlinesvx2.layout
-    elif pathname == '/outlines':
         return outlines.layout
-    elif pathname == '/shipgates':
-        return shipgates.layout
+    elif pathname == '/outlines':
+        return pullflow.layout
+    elif pathname == '/pullflow':
+        return pullflow.layout
     else:
         return '404'
 
