@@ -15,77 +15,83 @@ import re
 
 # Définition de la requête SQL
 query = """
-SELECT DISTINCT
-	container_id,
-	from_loc_id,
-	pallet_id,
-	consignment,
-	to_loc_id,
-	MAX(dstamp) AS DSTAMP
-FROM dcsdba.move_task 
-WHERE site_id ='LDC'
-    AND status ='Consol'
-    AND from_loc_id LIKE 'WT%'
-    AND consignment NOT LIKE 'KTS%'
-GROUP BY container_id, from_loc_id, pallet_id, consignment, to_loc_id
+SELECT  mt.container_id,
+        mt.consignment,
+        oc.pallet_id,
+        oc.v_container_type,
+        MAX(mt.dstamp) AS DSTAMP,
+        mt.from_loc_id as QUAI,
+        --mt.v_orig_location_zone as PROVENANCE,
+        CASE WHEN SUBSTR(mt.from_loc_id, 6, 1) = 'D' THEN 'Urgent' ELSE 'Régulier'
+        END AS TYPE,
+        --l.location_id,
+        --l.user_def_type_4,
+        --l.user_def_type_5,
+        l.user_def_type_6 AS DEPART
+FROM dcsdba.move_task mt
+LEFT JOIN dcsdba.order_container oc ON oc.container_id = mt.container_id
+LEFT JOIN dcsdba.location l ON mt.consignment = (SUBSTR(l.user_def_type_5, 1, 2)||SUBSTR(l.user_def_type_5, 4, 2)||'-'||l.location_id)
+WHERE mt.site_id = 'LDC'
+    AND mt.client_id = 'VOLVO'
+    AND mt.from_loc_id <> 'CLIENT-INT'
+    AND mt.work_zone = 'QUAI'
+    AND mt.container_id IS NOT NULL
+    AND oc.client_id = 'VOLVO'
+    AND oc.v_site_id = 'LDC'
+    AND l.site_id = 'LDC'
+    AND l.loc_type = 'ShipDock'
+GROUP BY (mt.container_id, mt.consignment, mt.from_loc_id, SUBSTR(mt.from_loc_id, 1, 6), oc.pallet_id, oc.v_container_type, l.location_id, l.user_def_type_4, l.user_def_type_5, l.user_def_type_6)
 """
 
 # Définition des colonnes à charger
-colonnes = ['CONTAINER_ID', 'FROM_LOC_ID', 'PALLET_ID', 'CONSIGNMENT', 'TO_LOC_ID', 'DSTAMP']
+colonnes = ['CONTAINER_ID', 'CONSIGNMENT', 'PALLET_ID', 'V_CONTAINER_TYPE', 'DSTAMP', 'QUAI', 'TYPE', 'DEPART']
 quais = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M' ,'N' ,'O' ,'Y']
 
 # Définition de l'affichage et intervalle de refresh
 layout = html.Div([
-    html.A( id='datetime-pullflow',
+    html.A( id='datetime-shipdocks',
             href='https://qlikview.srv.volvo.com/QvAJAXZfc/opendoc.htm?document=gto-sbi-wms2%5Coutlines.qvw&lang=en-US&host=QVS%40Cluster',
             target='_blank',
             style = {'color' : '#ECECEC', 'text-align' : 'center', 'font-size' : 28}),
     html.Div([
-        html.Div(dcc.Graph(id='left-header-pullflow'), style={'width' : '33%', 'display' : 'inline-block'}),
-        html.Div(
-            dcc.RadioItems(
-                    id = 'radio-pullflow',
-                    options = ['All', 'VX1', 'VX2-P'],
-                    value = 'All',
-                    inline = True,
-                    labelStyle = {'color': '#ECECEC'}), style={'width' : '33%', 'display' : 'inline-block'}),
-        html.Div(dcc.Graph(id='right-header-pullflow'), style={'width' : '33%', 'display' : 'inline-block'})
+        html.Div(dcc.Graph(id='left-header-shipdocks'), style={'width' : '33%', 'display' : 'inline-block'}),
+        html.Div(style={'width' : '33%', 'display' : 'inline-block'}),
+        html.Div(dcc.Graph(id='right-header-shipdocks'), style={'width' : '33%', 'display' : 'inline-block'})
             ]),
     html.Hr(),
     html.Div([
         html.Div([
-                dcc.Interval(id='interval-pullflow',
+                dcc.Interval(id='interval-shipdocks',
                             interval=30000, # milliseconds
                             n_intervals=0
                             ),
-                dcc.Store(id='memory-pullflow', data=[], storage_type='local'),
-                dcc.Graph(id='Andon-pullflow')
+                dcc.Store(id='memory-shipdocks', data=[], storage_type='local'),
+                dcc.Graph(id='Andon-shipdocks')
                 ]),
         html.Div([
-            html.Div([dcc.Graph(id='pullflow-quai-A'), dcc.Graph(id='pullflow-quai-I')], style={'width' : '12.4%', 'display' : 'inline-block'}),
-            html.Div([dcc.Graph(id='pullflow-quai-B'), dcc.Graph(id='pullflow-quai-J')], style={'width' : '12.4%', 'display' : 'inline-block'}),
-            html.Div([dcc.Graph(id='pullflow-quai-C'), dcc.Graph(id='pullflow-quai-K')], style={'width' : '12.4%', 'display' : 'inline-block'}),
-            html.Div([dcc.Graph(id='pullflow-quai-D'), dcc.Graph(id='pullflow-quai-L')], style={'width' : '12.4%', 'display' : 'inline-block'}),
-            html.Div([dcc.Graph(id='pullflow-quai-E'), dcc.Graph(id='pullflow-quai-M')], style={'width' : '12.4%', 'display' : 'inline-block'}),
-            html.Div([dcc.Graph(id='pullflow-quai-F'), dcc.Graph(id='pullflow-quai-N')], style={'width' : '12.4%', 'display' : 'inline-block'}),
-            html.Div([dcc.Graph(id='pullflow-quai-G'), dcc.Graph(id='pullflow-quai-O')], style={'width' : '12.4%', 'display' : 'inline-block'}),
-            html.Div([dcc.Graph(id='pullflow-quai-H'), dcc.Graph(id='pullflow-quai-Y')], style={'width' : '12.4%', 'display' : 'inline-block'})      
+            html.Div([dcc.Graph(id='shipdocks-quai-A'), dcc.Graph(id='shipdocks-quai-I')], style={'width' : '12.4%', 'display' : 'inline-block'}),
+            html.Div([dcc.Graph(id='shipdocks-quai-B'), dcc.Graph(id='shipdocks-quai-J')], style={'width' : '12.4%', 'display' : 'inline-block'}),
+            html.Div([dcc.Graph(id='shipdocks-quai-C'), dcc.Graph(id='shipdocks-quai-K')], style={'width' : '12.4%', 'display' : 'inline-block'}),
+            html.Div([dcc.Graph(id='shipdocks-quai-D'), dcc.Graph(id='shipdocks-quai-L')], style={'width' : '12.4%', 'display' : 'inline-block'}),
+            html.Div([dcc.Graph(id='shipdocks-quai-E'), dcc.Graph(id='shipdocks-quai-M')], style={'width' : '12.4%', 'display' : 'inline-block'}),
+            html.Div([dcc.Graph(id='shipdocks-quai-F'), dcc.Graph(id='shipdocks-quai-N')], style={'width' : '12.4%', 'display' : 'inline-block'}),
+            html.Div([dcc.Graph(id='shipdocks-quai-G'), dcc.Graph(id='shipdocks-quai-O')], style={'width' : '12.4%', 'display' : 'inline-block'}),
+            html.Div([dcc.Graph(id='shipdocks-quai-H'), dcc.Graph(id='shipdocks-quai-Y')], style={'width' : '12.4%', 'display' : 'inline-block'})      
             ])
     ])
 ], style={'backgroundColor' : '#000000', 'text-align' : 'center'})
 
 # Refresh automatique date
-@callback(Output('datetime-pullflow', 'children'),
-          [Input('interval-pullflow', 'n_intervals')])
+@callback(Output('datetime-shipdocks', 'children'),
+          [Input('interval-shipdocks', 'n_intervals')])
 def update_time(n):
     refresh_time = dt.datetime.now().strftime("%d-%m-%Y %H:%M:%S")
     return '{}'.format(refresh_time)
 
 # Refresh data
-@callback([Output('memory-pullflow', 'data'),
-           Input('interval-pullflow', 'n_intervals'),
-           Input('radio-pullflow', 'value')])
-def store_data(n, secteur):
+@callback([Output('memory-shipdocks', 'data'),
+           Input('interval-shipdocks', 'n_intervals')])
+def store_data(n):
     # Connection BD
     conn = wms2.connect()
     # Execution requête
@@ -97,21 +103,32 @@ def store_data(n, secteur):
     conn.close()
     # Ajout colonnes supplémentaires
     df['ORDER_TYPE'] = df['CONSIGNMENT'].str[5:6]
-    df['HORAIRE'] = df['CONSIGNMENT'].str[:4]
     df['DSTAMP'] = pd.to_datetime(df['DSTAMP'], yearfirst = True)
+    # Ajout du délai J ou J+
+    aujourdhui = dt.datetime.today().date()
+    maintenant = dt.datetime.now().hour * 100 + dt.datetime.now().minute
+    maintenant = str(maintenant)
+    if len(maintenant)==3:
+        maintenant = '0'+maintenant
+    df['HORAIRE'] = df['DEPART'].str[:2] + df['DEPART'].str[-2:]
+    df['DSTAMP'] = pd.to_datetime(df['DSTAMP'], yearfirst = True)
+    df['DATES'] = df['DSTAMP'].apply(lambda x: x.date())
+    df['DELAI'] = '#00FF00'
+    df.loc[df['DATES'] < aujourdhui, 'DELAI'] = '#FF0000'
+    df.loc[df['HORAIRE'] < maintenant, 'DELAI'] = '#FF0000'
     # Définition de la couleur de ponctualité
-    present = dt.datetime.now()
-    def def_color_backlog(x):
-        if present.time() > x:
-            return '#FF0000' # RETARD
-        elif (present + dt.timedelta(seconds = 15 * 60)).time() > x:
-            return '#FA9D00' # A PRIORISER
-        else:
-            return '#00FF00' # A L'HEURE
-    df['HORAIRE_dt'] = pd.to_datetime(df['HORAIRE'], format = '%H%M').dt.time
-    df['RET_color'] = df['HORAIRE_dt'].apply(lambda x: def_color_backlog(x))
+    # present = dt.datetime.now()
+    # def def_color_backlog(x):
+    #     if present.time() > x:
+    #         return '#FF0000' # RETARD
+    #     elif (present + dt.timedelta(seconds = 15 * 60)).time() > x:
+    #         return '#FA9D00' # A PRIORISER
+    #     else:
+    #         return '#00FF00' # A L'HEURE
+    # df['HORAIRE_dt'] = pd.to_datetime(df['HORAIRE'], format = '%H%M').dt.time
+    # df['RET_color'] = df['HORAIRE_dt'].apply(lambda x: def_color_backlog(x))
     df['FONT'] = '#ECECEC'
-    df.loc[df['RET_color']=='#00FF00', 'FONT'] = '#000000'
+    df.loc[df['DELAI']=='#00FF00', 'FONT'] = '#000000'
     #Définition de la couleur de priorité
     df['FILL'] = '#000000'
     df.loc[df['ORDER_TYPE']=='D', 'FILL'] = '#0060BF'
@@ -127,49 +144,37 @@ def store_data(n, secteur):
                               'G6', 'DISP', 'G6A', 'GCA'])
     df = df.drop(['CONTAINER_ID', 'DSTAMP'], axis = 1)
     df = df.drop_duplicates()
-    df['FROM_LOC_ID'] = df['FROM_LOC_ID'].apply(lambda x: x.replace('WT-', ''))
-    if secteur != 'All':
-        df = df[df['FROM_LOC_ID'] == secteur]
     return [df.to_dict()]
 
 # Refresh histogramme
-@callback(Output('Andon-pullflow', 'figure'),
-              [Input('memory-pullflow', 'data')])
+@callback(Output('Andon-shipdocks', 'figure'),
+              [Input('memory-shipdocks', 'data')])
 def update_histo(donnees):
     # Chargement des données en mémoire
     df = pd.DataFrame.from_dict(donnees)
     # Définition du visuel à afficher (figure)
-    histo = df[['TO_LOC_ID', 'RET_color', 'PALLET_ID']]
-    histo = histo.groupby(['TO_LOC_ID', 'RET_color']).count()
+    histo = df[['QUAI', 'DELAI', 'PALLET_ID']]
+    histo = histo.groupby(['QUAI', 'DELAI']).count()
     histo.reset_index(inplace = True)
-    pf_ret = go.Bar(
+    sd_j = go.Bar(
                     name = 'Retard',
-                    x = histo['TO_LOC_ID'][histo['RET_color']=='#FF0000'],
-                    y = histo['PALLET_ID'][histo['RET_color']=='#FF0000'],
-                    text = histo['PALLET_ID'][histo['RET_color']=='#FF0000'],
-                    # orientation = 'h',
-                    marker = dict (color = '#FF0000'),
-                    showlegend = False
-                    )
-    pf_prio = go.Bar(
-                    name = 'A prioriser',
-                    x = histo['TO_LOC_ID'][histo['RET_color']=='#FA9D00'],
-                    y = histo['PALLET_ID'][histo['RET_color']=='#FA9D00'],
-                    text = histo['PALLET_ID'][histo['RET_color']=='#FA9D00'],
-                    # orientation = 'h',
-                    marker = dict (color = '#FA9D00'),
-                    showlegend = False
-                    )
-    pf_ontime = go.Bar(
-                    name = "A l'heure",
-                    x = histo['TO_LOC_ID'][histo['RET_color']=='#00FF00'],
-                    y = histo['PALLET_ID'][histo['RET_color']=='#00FF00'],
-                    text = histo['PALLET_ID'][histo['RET_color']=='#00FF00'],
+                    x = histo['QUAI'][histo['DELAI']=='#00FF00'],
+                    y = histo['PALLET_ID'][histo['DELAI']=='#00FF00'],
+                    text = histo['PALLET_ID'][histo['DELAI']=='#00FF00'],
                     # orientation = 'h',
                     marker = dict (color = '#00FF00'),
                     showlegend = False
                     )
-    data = [pf_ret, pf_prio, pf_ontime]
+    sd_jplus = go.Bar(
+                    name = 'A prioriser',
+                    x = histo['QUAI'][histo['DELAI']=='#FF0000'],
+                    y = histo['PALLET_ID'][histo['DELAI']=='#FF0000'],
+                    text = histo['PALLET_ID'][histo['DELAI']=='#FF0000'],
+                    # orientation = 'h',
+                    marker = dict (color = '#FF0000'),
+                    showlegend = False
+                    )
+    data = [sd_j, sd_jplus]
     layout = go.Layout(barmode = 'stack',
                        paper_bgcolor = '#000000',
                        plot_bgcolor = '#000000',
@@ -187,32 +192,31 @@ def update_histo(donnees):
     }
 
 # Refresh LEFT HEADER
-@callback(Output('left-header-pullflow', 'figure'),
-         [Input('memory-pullflow', 'data')])
+@callback(Output('left-header-shipdocks', 'figure'),
+         [Input('memory-shipdocks', 'data')])
 def update_left_header(donnees):
     # Chargement des données en mémoire
     df = pd.DataFrame.from_dict(donnees)
     # Sélection du quai à afficher
     header_l = df
     # Liste des colonnes à afficher    
-    ontime =  len(header_l[header_l['RET_color']=='#00FF00'])
-    prioriser = len(header_l[header_l['RET_color']=='#FA9D00'])
-    retard = len(header_l[header_l['RET_color']=='#FF0000'])
+    j =  len(header_l[header_l['DELAI']=='#00FF00'])
+    jplus = len(header_l[header_l['DELAI']=='#FF0000'])
     total = len(header_l)
     # Définition du visuel à afficher (figure)
     trace = go.Table(
-                    columnwidth = [25, 25, 25, 25],
-                    header = dict(  values = ['', '', '', ''],
-                                    fill = dict(color=['#000000', '#000000']),
+                    columnwidth = [25, 25, 25],
+                    header = dict(  values = ['', '', ''],
+                                    fill = dict(color=['#000000', '#000000', '#000000']),
                                     line = dict(color='#777777', width=1),
                                     font = dict(color = '#ECECEC', size = 16),
                                     align = ['center'],
                                     height = 0),
-                    cells = dict(   values = [ontime, prioriser, retard, total],
-                                    fill = dict(color=['#00FF00', '#FA9D00', '#FF0000', '#000000']),
+                    cells = dict(   values = [j, jplus, total],
+                                    fill = dict(color=['#00FF00', '#FF0000', '#000000']),
                                     line = dict(color='#777777', width=1),
-                                    font = dict(color=['#000000', '#ECECEC', '#ECECEC', '#ECECEC'], size = 20), 
-                                    align = ['center'] * 4,
+                                    font = dict(color=['#000000', '#ECECEC', '#ECECEC'], size = 20), 
+                                    align = ['center'] * 3,
                                     height = 33)
                     )
     data = [trace]
@@ -226,8 +230,8 @@ def update_left_header(donnees):
     }
 
 # Refresh RIGHT HEADER
-@callback(Output('right-header-pullflow', 'figure'),
-         [Input('memory-pullflow', 'data')])
+@callback(Output('right-header-shipdocks', 'figure'),
+         [Input('memory-shipdocks', 'data')])
 def update_left_header(donnees):
     # Chargement des données en mémoire
     df = pd.DataFrame.from_dict(donnees)
@@ -265,22 +269,22 @@ def update_left_header(donnees):
     }
 
 # Refresh écran quai A ########################################## CODE IDENTIQUE SAUF OUTPUT + SELECTION + HEADER
-@callback(Output('pullflow-quai-A', 'figure'),
-         [Input('memory-pullflow', 'data')])
+@callback(Output('shipdocks-quai-A', 'figure'),
+         [Input('memory-shipdocks', 'data')])
 def update_quai_a(donnees):
     # Chargement des données en mémoire
     df = pd.DataFrame.from_dict(donnees)
     # Sélection du quai à afficher
-    table = df[df['TO_LOC_ID']=='A']
-    table = table[['PALLET_ID', 'CONSIGNMENT', 'RET_color', 'FONT', 'FILL']]
-    table = table.groupby(['CONSIGNMENT', 'RET_color', 'FONT', 'FILL']).count()
+    table = df[df['QUAI']=='A']
+    table = table[['PALLET_ID', 'CONSIGNMENT', 'DELAI', 'FONT', 'FILL']]
+    table = table.groupby(['CONSIGNMENT', 'DELAI', 'FONT', 'FILL']).count()
     table.reset_index(inplace = True)
     # Liste des colonnes à afficher    
     consignment =  table['CONSIGNMENT'].values
     palettes = table['PALLET_ID'].values
     font = table['FONT'].values
     fill = table['FILL'].values
-    retard = table['RET_color'].values
+    retard = table['DELAI'].values
     # Définition des colonnes à afficher
     shown_columns = ['CONSIGNMENT', 'PALLET_ID']
     fill_color = []
@@ -325,22 +329,22 @@ def update_quai_a(donnees):
     }
 
 # Refresh écran quai B ########################################## CODE IDENTIQUE SAUF OUTPUT + SELECTION + HEADER
-@callback(Output('pullflow-quai-B', 'figure'),
-         [Input('memory-pullflow', 'data')])
+@callback(Output('shipdocks-quai-B', 'figure'),
+         [Input('memory-shipdocks', 'data')])
 def update_quai_a(donnees):
     # Chargement des données en mémoire
     df = pd.DataFrame.from_dict(donnees)
     # Sélection du quai à afficher
-    table = df[df['TO_LOC_ID']=='B']
-    table = table[['PALLET_ID', 'CONSIGNMENT', 'RET_color', 'FONT', 'FILL']]
-    table = table.groupby(['CONSIGNMENT', 'RET_color', 'FONT', 'FILL']).count()
+    table = df[df['QUAI']=='B']
+    table = table[['PALLET_ID', 'CONSIGNMENT', 'DELAI', 'FONT', 'FILL']]
+    table = table.groupby(['CONSIGNMENT', 'DELAI', 'FONT', 'FILL']).count()
     table.reset_index(inplace = True)
     # Liste des colonnes à afficher    
     consignment =  table['CONSIGNMENT'].values
     palettes = table['PALLET_ID'].values
     font = table['FONT'].values
     fill = table['FILL'].values
-    retard = table['RET_color'].values
+    retard = table['DELAI'].values
     # Définition des colonnes à afficher
     shown_columns = ['CONSIGNMENT', 'PALLET_ID']
     fill_color = []
@@ -384,22 +388,22 @@ def update_quai_a(donnees):
         }
     }
 # Refresh écran quai C ########################################## CODE IDENTIQUE SAUF OUTPUT + SELECTION + HEADER
-@callback(Output('pullflow-quai-C', 'figure'),
-         [Input('memory-pullflow', 'data')])
+@callback(Output('shipdocks-quai-C', 'figure'),
+         [Input('memory-shipdocks', 'data')])
 def update_quai_a(donnees):
     # Chargement des données en mémoire
     df = pd.DataFrame.from_dict(donnees)
     # Sélection du quai à afficher
-    table = df[df['TO_LOC_ID']=='C']
-    table = table[['PALLET_ID', 'CONSIGNMENT', 'RET_color', 'FONT', 'FILL']]
-    table = table.groupby(['CONSIGNMENT', 'RET_color', 'FONT', 'FILL']).count()
+    table = df[df['QUAI']=='C']
+    table = table[['PALLET_ID', 'CONSIGNMENT', 'DELAI', 'FONT', 'FILL']]
+    table = table.groupby(['CONSIGNMENT', 'DELAI', 'FONT', 'FILL']).count()
     table.reset_index(inplace = True)
     # Liste des colonnes à afficher    
     consignment =  table['CONSIGNMENT'].values
     palettes = table['PALLET_ID'].values
     font = table['FONT'].values
     fill = table['FILL'].values
-    retard = table['RET_color'].values
+    retard = table['DELAI'].values
     # Définition des colonnes à afficher
     shown_columns = ['CONSIGNMENT', 'PALLET_ID']
     fill_color = []
@@ -443,22 +447,22 @@ def update_quai_a(donnees):
         }
     }
 # Refresh écran quai D ########################################## CODE IDENTIQUE SAUF OUTPUT + SELECTION + HEADER
-@callback(Output('pullflow-quai-D', 'figure'),
-         [Input('memory-pullflow', 'data')])
+@callback(Output('shipdocks-quai-D', 'figure'),
+         [Input('memory-shipdocks', 'data')])
 def update_quai_a(donnees):
     # Chargement des données en mémoire
     df = pd.DataFrame.from_dict(donnees)
     # Sélection du quai à afficher
-    table = df[df['TO_LOC_ID']=='D']
-    table = table[['PALLET_ID', 'CONSIGNMENT', 'RET_color', 'FONT', 'FILL']]
-    table = table.groupby(['CONSIGNMENT', 'RET_color', 'FONT', 'FILL']).count()
+    table = df[df['QUAI']=='D']
+    table = table[['PALLET_ID', 'CONSIGNMENT', 'DELAI', 'FONT', 'FILL']]
+    table = table.groupby(['CONSIGNMENT', 'DELAI', 'FONT', 'FILL']).count()
     table.reset_index(inplace = True)
     # Liste des colonnes à afficher    
     consignment =  table['CONSIGNMENT'].values
     palettes = table['PALLET_ID'].values
     font = table['FONT'].values
     fill = table['FILL'].values
-    retard = table['RET_color'].values
+    retard = table['DELAI'].values
     # Définition des colonnes à afficher
     shown_columns = ['CONSIGNMENT', 'PALLET_ID']
     fill_color = []
@@ -502,22 +506,22 @@ def update_quai_a(donnees):
         }
     }
 # Refresh écran quai E ########################################## CODE IDENTIQUE SAUF OUTPUT + SELECTION + HEADER
-@callback(Output('pullflow-quai-E', 'figure'),
-         [Input('memory-pullflow', 'data')])
+@callback(Output('shipdocks-quai-E', 'figure'),
+         [Input('memory-shipdocks', 'data')])
 def update_quai_a(donnees):
     # Chargement des données en mémoire
     df = pd.DataFrame.from_dict(donnees)
     # Sélection du quai à afficher
-    table = df[df['TO_LOC_ID']=='E']
-    table = table[['PALLET_ID', 'CONSIGNMENT', 'RET_color', 'FONT', 'FILL']]
-    table = table.groupby(['CONSIGNMENT', 'RET_color', 'FONT', 'FILL']).count()
+    table = df[df['QUAI']=='E']
+    table = table[['PALLET_ID', 'CONSIGNMENT', 'DELAI', 'FONT', 'FILL']]
+    table = table.groupby(['CONSIGNMENT', 'DELAI', 'FONT', 'FILL']).count()
     table.reset_index(inplace = True)
     # Liste des colonnes à afficher    
     consignment =  table['CONSIGNMENT'].values
     palettes = table['PALLET_ID'].values
     font = table['FONT'].values
     fill = table['FILL'].values
-    retard = table['RET_color'].values
+    retard = table['DELAI'].values
     # Définition des colonnes à afficher
     shown_columns = ['CONSIGNMENT', 'PALLET_ID']
     fill_color = []
@@ -561,22 +565,22 @@ def update_quai_a(donnees):
         }
     }
 # Refresh écran quai F ########################################## CODE IDENTIQUE SAUF OUTPUT + SELECTION + HEADER
-@callback(Output('pullflow-quai-F', 'figure'),
-         [Input('memory-pullflow', 'data')])
+@callback(Output('shipdocks-quai-F', 'figure'),
+         [Input('memory-shipdocks', 'data')])
 def update_quai_a(donnees):
     # Chargement des données en mémoire
     df = pd.DataFrame.from_dict(donnees)
     # Sélection du quai à afficher
-    table = df[df['TO_LOC_ID']=='F']
-    table = table[['PALLET_ID', 'CONSIGNMENT', 'RET_color', 'FONT', 'FILL']]
-    table = table.groupby(['CONSIGNMENT', 'RET_color', 'FONT', 'FILL']).count()
+    table = df[df['QUAI']=='F']
+    table = table[['PALLET_ID', 'CONSIGNMENT', 'DELAI', 'FONT', 'FILL']]
+    table = table.groupby(['CONSIGNMENT', 'DELAI', 'FONT', 'FILL']).count()
     table.reset_index(inplace = True)
     # Liste des colonnes à afficher    
     consignment =  table['CONSIGNMENT'].values
     palettes = table['PALLET_ID'].values
     font = table['FONT'].values
     fill = table['FILL'].values
-    retard = table['RET_color'].values
+    retard = table['DELAI'].values
     # Définition des colonnes à afficher
     shown_columns = ['CONSIGNMENT', 'PALLET_ID']
     fill_color = []
@@ -620,22 +624,22 @@ def update_quai_a(donnees):
         }
     }
 # Refresh écran quai G ########################################## CODE IDENTIQUE SAUF OUTPUT + SELECTION + HEADER
-@callback(Output('pullflow-quai-G', 'figure'),
-         [Input('memory-pullflow', 'data')])
+@callback(Output('shipdocks-quai-G', 'figure'),
+         [Input('memory-shipdocks', 'data')])
 def update_quai_a(donnees):
     # Chargement des données en mémoire
     df = pd.DataFrame.from_dict(donnees)
     # Sélection du quai à afficher
-    table = df[df['TO_LOC_ID']=='G']
-    table = table[['PALLET_ID', 'CONSIGNMENT', 'RET_color', 'FONT', 'FILL']]
-    table = table.groupby(['CONSIGNMENT', 'RET_color', 'FONT', 'FILL']).count()
+    table = df[df['QUAI']=='G']
+    table = table[['PALLET_ID', 'CONSIGNMENT', 'DELAI', 'FONT', 'FILL']]
+    table = table.groupby(['CONSIGNMENT', 'DELAI', 'FONT', 'FILL']).count()
     table.reset_index(inplace = True)
     # Liste des colonnes à afficher    
     consignment =  table['CONSIGNMENT'].values
     palettes = table['PALLET_ID'].values
     font = table['FONT'].values
     fill = table['FILL'].values
-    retard = table['RET_color'].values
+    retard = table['DELAI'].values
     # Définition des colonnes à afficher
     shown_columns = ['CONSIGNMENT', 'PALLET_ID']
     fill_color = []
@@ -679,22 +683,22 @@ def update_quai_a(donnees):
         }
     }
 # Refresh écran quai H ########################################## CODE IDENTIQUE SAUF OUTPUT + SELECTION + HEADER
-@callback(Output('pullflow-quai-H', 'figure'),
-         [Input('memory-pullflow', 'data')])
+@callback(Output('shipdocks-quai-H', 'figure'),
+         [Input('memory-shipdocks', 'data')])
 def update_quai_a(donnees):
     # Chargement des données en mémoire
     df = pd.DataFrame.from_dict(donnees)
     # Sélection du quai à afficher
-    table = df[df['TO_LOC_ID']=='H']
-    table = table[['PALLET_ID', 'CONSIGNMENT', 'RET_color', 'FONT', 'FILL']]
-    table = table.groupby(['CONSIGNMENT', 'RET_color', 'FONT', 'FILL']).count()
+    table = df[df['QUAI']=='H']
+    table = table[['PALLET_ID', 'CONSIGNMENT', 'DELAI', 'FONT', 'FILL']]
+    table = table.groupby(['CONSIGNMENT', 'DELAI', 'FONT', 'FILL']).count()
     table.reset_index(inplace = True)
     # Liste des colonnes à afficher    
     consignment =  table['CONSIGNMENT'].values
     palettes = table['PALLET_ID'].values
     font = table['FONT'].values
     fill = table['FILL'].values
-    retard = table['RET_color'].values
+    retard = table['DELAI'].values
     # Définition des colonnes à afficher
     shown_columns = ['CONSIGNMENT', 'PALLET_ID']
     fill_color = []
@@ -738,22 +742,22 @@ def update_quai_a(donnees):
         }
     }
 # Refresh écran quai I ########################################## CODE IDENTIQUE SAUF OUTPUT + SELECTION + HEADER
-@callback(Output('pullflow-quai-I', 'figure'),
-         [Input('memory-pullflow', 'data')])
+@callback(Output('shipdocks-quai-I', 'figure'),
+         [Input('memory-shipdocks', 'data')])
 def update_quai_a(donnees):
     # Chargement des données en mémoire
     df = pd.DataFrame.from_dict(donnees)
     # Sélection du quai à afficher
-    table = df[df['TO_LOC_ID']=='I']
-    table = table[['PALLET_ID', 'CONSIGNMENT', 'RET_color', 'FONT', 'FILL']]
-    table = table.groupby(['CONSIGNMENT', 'RET_color', 'FONT', 'FILL']).count()
+    table = df[df['QUAI']=='I']
+    table = table[['PALLET_ID', 'CONSIGNMENT', 'DELAI', 'FONT', 'FILL']]
+    table = table.groupby(['CONSIGNMENT', 'DELAI', 'FONT', 'FILL']).count()
     table.reset_index(inplace = True)
     # Liste des colonnes à afficher    
     consignment =  table['CONSIGNMENT'].values
     palettes = table['PALLET_ID'].values
     font = table['FONT'].values
     fill = table['FILL'].values
-    retard = table['RET_color'].values
+    retard = table['DELAI'].values
     # Définition des colonnes à afficher
     shown_columns = ['CONSIGNMENT', 'PALLET_ID']
     fill_color = []
@@ -797,22 +801,22 @@ def update_quai_a(donnees):
         }
     }
 # Refresh écran quai J ########################################## CODE IDENTIQUE SAUF OUTPUT + SELECTION + HEADER
-@callback(Output('pullflow-quai-J', 'figure'),
-         [Input('memory-pullflow', 'data')])
+@callback(Output('shipdocks-quai-J', 'figure'),
+         [Input('memory-shipdocks', 'data')])
 def update_quai_a(donnees):
     # Chargement des données en mémoire
     df = pd.DataFrame.from_dict(donnees)
     # Sélection du quai à afficher
-    table = df[df['TO_LOC_ID']=='J']
-    table = table[['PALLET_ID', 'CONSIGNMENT', 'RET_color', 'FONT', 'FILL']]
-    table = table.groupby(['CONSIGNMENT', 'RET_color', 'FONT', 'FILL']).count()
+    table = df[df['QUAI']=='J']
+    table = table[['PALLET_ID', 'CONSIGNMENT', 'DELAI', 'FONT', 'FILL']]
+    table = table.groupby(['CONSIGNMENT', 'DELAI', 'FONT', 'FILL']).count()
     table.reset_index(inplace = True)
     # Liste des colonnes à afficher    
     consignment =  table['CONSIGNMENT'].values
     palettes = table['PALLET_ID'].values
     font = table['FONT'].values
     fill = table['FILL'].values
-    retard = table['RET_color'].values
+    retard = table['DELAI'].values
     # Définition des colonnes à afficher
     shown_columns = ['CONSIGNMENT', 'PALLET_ID']
     fill_color = []
@@ -856,22 +860,22 @@ def update_quai_a(donnees):
         }
     }
 # Refresh écran quai K ########################################## CODE IDENTIQUE SAUF OUTPUT + SELECTION + HEADER
-@callback(Output('pullflow-quai-K', 'figure'),
-         [Input('memory-pullflow', 'data')])
+@callback(Output('shipdocks-quai-K', 'figure'),
+         [Input('memory-shipdocks', 'data')])
 def update_quai_a(donnees):
     # Chargement des données en mémoire
     df = pd.DataFrame.from_dict(donnees)
     # Sélection du quai à afficher
-    table = df[df['TO_LOC_ID']=='K']
-    table = table[['PALLET_ID', 'CONSIGNMENT', 'RET_color', 'FONT', 'FILL']]
-    table = table.groupby(['CONSIGNMENT', 'RET_color', 'FONT', 'FILL']).count()
+    table = df[df['QUAI']=='K']
+    table = table[['PALLET_ID', 'CONSIGNMENT', 'DELAI', 'FONT', 'FILL']]
+    table = table.groupby(['CONSIGNMENT', 'DELAI', 'FONT', 'FILL']).count()
     table.reset_index(inplace = True)
     # Liste des colonnes à afficher    
     consignment =  table['CONSIGNMENT'].values
     palettes = table['PALLET_ID'].values
     font = table['FONT'].values
     fill = table['FILL'].values
-    retard = table['RET_color'].values
+    retard = table['DELAI'].values
     # Définition des colonnes à afficher
     shown_columns = ['CONSIGNMENT', 'PALLET_ID']
     fill_color = []
@@ -915,22 +919,22 @@ def update_quai_a(donnees):
         }
     }
 # Refresh écran quai L ########################################## CODE IDENTIQUE SAUF OUTPUT + SELECTION + HEADER
-@callback(Output('pullflow-quai-L', 'figure'),
-         [Input('memory-pullflow', 'data')])
+@callback(Output('shipdocks-quai-L', 'figure'),
+         [Input('memory-shipdocks', 'data')])
 def update_quai_a(donnees):
     # Chargement des données en mémoire
     df = pd.DataFrame.from_dict(donnees)
     # Sélection du quai à afficher
-    table = df[df['TO_LOC_ID']=='L']
-    table = table[['PALLET_ID', 'CONSIGNMENT', 'RET_color', 'FONT', 'FILL']]
-    table = table.groupby(['CONSIGNMENT', 'RET_color', 'FONT', 'FILL']).count()
+    table = df[df['QUAI']=='L']
+    table = table[['PALLET_ID', 'CONSIGNMENT', 'DELAI', 'FONT', 'FILL']]
+    table = table.groupby(['CONSIGNMENT', 'DELAI', 'FONT', 'FILL']).count()
     table.reset_index(inplace = True)
     # Liste des colonnes à afficher    
     consignment =  table['CONSIGNMENT'].values
     palettes = table['PALLET_ID'].values
     font = table['FONT'].values
     fill = table['FILL'].values
-    retard = table['RET_color'].values
+    retard = table['DELAI'].values
     # Définition des colonnes à afficher
     shown_columns = ['CONSIGNMENT', 'PALLET_ID']
     fill_color = []
@@ -974,22 +978,22 @@ def update_quai_a(donnees):
         }
     }
 # Refresh écran quai M ########################################## CODE IDENTIQUE SAUF OUTPUT + SELECTION + HEADER
-@callback(Output('pullflow-quai-M', 'figure'),
-         [Input('memory-pullflow', 'data')])
+@callback(Output('shipdocks-quai-M', 'figure'),
+         [Input('memory-shipdocks', 'data')])
 def update_quai_a(donnees):
     # Chargement des données en mémoire
     df = pd.DataFrame.from_dict(donnees)
     # Sélection du quai à afficher
-    table = df[df['TO_LOC_ID']=='M']
-    table = table[['PALLET_ID', 'CONSIGNMENT', 'RET_color', 'FONT', 'FILL']]
-    table = table.groupby(['CONSIGNMENT', 'RET_color', 'FONT', 'FILL']).count()
+    table = df[df['QUAI']=='M']
+    table = table[['PALLET_ID', 'CONSIGNMENT', 'DELAI', 'FONT', 'FILL']]
+    table = table.groupby(['CONSIGNMENT', 'DELAI', 'FONT', 'FILL']).count()
     table.reset_index(inplace = True)
     # Liste des colonnes à afficher    
     consignment =  table['CONSIGNMENT'].values
     palettes = table['PALLET_ID'].values
     font = table['FONT'].values
     fill = table['FILL'].values
-    retard = table['RET_color'].values
+    retard = table['DELAI'].values
     # Définition des colonnes à afficher
     shown_columns = ['CONSIGNMENT', 'PALLET_ID']
     fill_color = []
@@ -1033,22 +1037,22 @@ def update_quai_a(donnees):
         }
     }
 # Refresh écran quai N ########################################## CODE IDENTIQUE SAUF OUTPUT + SELECTION + HEADER
-@callback(Output('pullflow-quai-N', 'figure'),
-         [Input('memory-pullflow', 'data')])
+@callback(Output('shipdocks-quai-N', 'figure'),
+         [Input('memory-shipdocks', 'data')])
 def update_quai_a(donnees):
     # Chargement des données en mémoire
     df = pd.DataFrame.from_dict(donnees)
     # Sélection du quai à afficher
-    table = df[df['TO_LOC_ID']=='N']
-    table = table[['PALLET_ID', 'CONSIGNMENT', 'RET_color', 'FONT', 'FILL']]
-    table = table.groupby(['CONSIGNMENT', 'RET_color', 'FONT', 'FILL']).count()
+    table = df[df['QUAI']=='N']
+    table = table[['PALLET_ID', 'CONSIGNMENT', 'DELAI', 'FONT', 'FILL']]
+    table = table.groupby(['CONSIGNMENT', 'DELAI', 'FONT', 'FILL']).count()
     table.reset_index(inplace = True)
     # Liste des colonnes à afficher    
     consignment =  table['CONSIGNMENT'].values
     palettes = table['PALLET_ID'].values
     font = table['FONT'].values
     fill = table['FILL'].values
-    retard = table['RET_color'].values
+    retard = table['DELAI'].values
     # Définition des colonnes à afficher
     shown_columns = ['CONSIGNMENT', 'PALLET_ID']
     fill_color = []
@@ -1092,22 +1096,22 @@ def update_quai_a(donnees):
         }
     }
 # Refresh écran quai O ########################################## CODE IDENTIQUE SAUF OUTPUT + SELECTION + HEADER
-@callback(Output('pullflow-quai-O', 'figure'),
-         [Input('memory-pullflow', 'data')])
+@callback(Output('shipdocks-quai-O', 'figure'),
+         [Input('memory-shipdocks', 'data')])
 def update_quai_a(donnees):
     # Chargement des données en mémoire
     df = pd.DataFrame.from_dict(donnees)
     # Sélection du quai à afficher
-    table = df[df['TO_LOC_ID']=='O']
-    table = table[['PALLET_ID', 'CONSIGNMENT', 'RET_color', 'FONT', 'FILL']]
-    table = table.groupby(['CONSIGNMENT', 'RET_color', 'FONT', 'FILL']).count()
+    table = df[df['QUAI']=='O']
+    table = table[['PALLET_ID', 'CONSIGNMENT', 'DELAI', 'FONT', 'FILL']]
+    table = table.groupby(['CONSIGNMENT', 'DELAI', 'FONT', 'FILL']).count()
     table.reset_index(inplace = True)
     # Liste des colonnes à afficher    
     consignment =  table['CONSIGNMENT'].values
     palettes = table['PALLET_ID'].values
     font = table['FONT'].values
     fill = table['FILL'].values
-    retard = table['RET_color'].values
+    retard = table['DELAI'].values
     # Définition des colonnes à afficher
     shown_columns = ['CONSIGNMENT', 'PALLET_ID']
     fill_color = []
@@ -1151,22 +1155,22 @@ def update_quai_a(donnees):
         }
     }
 # Refresh écran quai Y ########################################## CODE IDENTIQUE SAUF OUTPUT + SELECTION + HEADER
-@callback(Output('pullflow-quai-Y', 'figure'),
-         [Input('memory-pullflow', 'data')])
+@callback(Output('shipdocks-quai-Y', 'figure'),
+         [Input('memory-shipdocks', 'data')])
 def update_quai_a(donnees):
     # Chargement des données en mémoire
     df = pd.DataFrame.from_dict(donnees)
     # Sélection du quai à afficher
-    table = df[df['TO_LOC_ID']=='Y']
-    table = table[['PALLET_ID', 'CONSIGNMENT', 'RET_color', 'FONT', 'FILL']]
-    table = table.groupby(['CONSIGNMENT', 'RET_color', 'FONT', 'FILL']).count()
+    table = df[df['QUAI']=='Y']
+    table = table[['PALLET_ID', 'CONSIGNMENT', 'DELAI', 'FONT', 'FILL']]
+    table = table.groupby(['CONSIGNMENT', 'DELAI', 'FONT', 'FILL']).count()
     table.reset_index(inplace = True)
     # Liste des colonnes à afficher    
     consignment =  table['CONSIGNMENT'].values
     palettes = table['PALLET_ID'].values
     font = table['FONT'].values
     fill = table['FILL'].values
-    retard = table['RET_color'].values
+    retard = table['DELAI'].values
     # Définition des colonnes à afficher
     shown_columns = ['CONSIGNMENT', 'PALLET_ID']
     fill_color = []

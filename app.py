@@ -4,7 +4,7 @@
 
 from dash import Dash, dcc, html, Input, Output, callback
 # Liste des pages à afficher
-from pages import consovx2, packsize, outlines, shipgates, pullflow
+from pages import consovx2, packsize, outlines, shipgates, pullflow, shipdocks
 
 app = Dash(__name__, suppress_callback_exceptions=True)
 app.title = 'Andons DC Lyon'
@@ -19,16 +19,18 @@ app.layout = html.Div([
 @callback(Output('page-content', 'children'),
               Input('url', 'pathname'))
 def display_page(pathname):
-    if pathname == '/consovx2':
+    if pathname == '/andonprod/consovx2':
         return consovx2.layout
-    elif pathname == '/packsize':
+    elif pathname == '/andonprod/packsize':
         return packsize.layout
-    elif pathname == '/outlinesvx2':
+    elif pathname == '/andonprod/outlines':
         return outlines.layout
-    elif pathname == '/outlines':
+    elif pathname == '/andonprod/shipgates':
+        return shipgates.layout
+    elif pathname == '/andonprod/pullflow':
         return pullflow.layout
-    elif pathname == '/pullflow':
-        return pullflow.layout
+    elif pathname == '/andonprod/shipdocks':
+        return shipdocks.layout
     else:
         return '404'
 
