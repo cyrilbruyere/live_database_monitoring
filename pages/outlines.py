@@ -210,7 +210,8 @@ def update_graf_reg(donnees, secteur):
                        # title = 'Régulier',
                        titlefont_size = 24,
                        height = 700,
-                       margin = dict(l=150, r=5, t=35, b=0))
+                       margin = dict(l=150, r=40, t=35, b=0),
+                       showlegend = False)
     return {
         'data' : data,
         'layout' : layout
@@ -306,7 +307,8 @@ def update_graf_urg(donnees, secteur):
                        # title = 'Urgent',
                        titlefont_size = 24,
                        height = 700,
-                       margin = dict(l=150, r=5, t=35, b=0))
+                       margin = dict(l=190, r=50, t=35, b=0),
+                       showlegend = False)
     return {
         'data' : data,
         'layout' : layout

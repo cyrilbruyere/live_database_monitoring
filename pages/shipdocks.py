@@ -142,6 +142,7 @@ def store_data(n):
                      value = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H',
                               'I', 'J', 'K', 'L', 'M', 'N', 'O', 'Y',
                               'G6', 'DISP', 'G6A', 'GCA'])
+    df = df[df['QUAI'].isin(['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M' ,'N' ,'O' ,'Y'])]
     df = df.drop(['CONTAINER_ID', 'DSTAMP'], axis = 1)
     df = df.drop_duplicates()
     return [df.to_dict()]
@@ -184,7 +185,7 @@ def update_histo(donnees):
                        yaxis = dict(ticks='', showticklabels = False),
                        title = '',
                        titlefont_size = 24,
-                       height = 200,
+                       height = 280,
                        margin = dict(l=5, r=5, t=10, b=40))
     return {
         'data' : data,
@@ -323,7 +324,7 @@ def update_quai_a(donnees):
         'data' : data,
         'layout' : {
             'paper_bgcolor' : '#000000',
-            'height' : 260,
+            'height' : 350,
             'margin' : dict(l=1, r=1, t=1, b=1)
         }
     }
@@ -383,7 +384,7 @@ def update_quai_a(donnees):
         'data' : data,
         'layout' : {
             'paper_bgcolor' : '#000000',
-            'height' : 260,
+            'height' : 350,
             'margin' : dict(l=1, r=1, t=1, b=1)
         }
     }
@@ -442,7 +443,7 @@ def update_quai_a(donnees):
         'data' : data,
         'layout' : {
             'paper_bgcolor' : '#000000',
-            'height' : 260,
+            'height' : 350,
             'margin' : dict(l=1, r=1, t=1, b=1)
         }
     }
@@ -501,7 +502,7 @@ def update_quai_a(donnees):
         'data' : data,
         'layout' : {
             'paper_bgcolor' : '#000000',
-            'height' : 260,
+            'height' : 350,
             'margin' : dict(l=1, r=1, t=1, b=1)
         }
     }
@@ -560,7 +561,7 @@ def update_quai_a(donnees):
         'data' : data,
         'layout' : {
             'paper_bgcolor' : '#000000',
-            'height' : 260,
+            'height' : 350,
             'margin' : dict(l=1, r=1, t=1, b=1)
         }
     }
@@ -619,7 +620,7 @@ def update_quai_a(donnees):
         'data' : data,
         'layout' : {
             'paper_bgcolor' : '#000000',
-            'height' : 260,
+            'height' : 350,
             'margin' : dict(l=1, r=1, t=1, b=1)
         }
     }
@@ -678,7 +679,7 @@ def update_quai_a(donnees):
         'data' : data,
         'layout' : {
             'paper_bgcolor' : '#000000',
-            'height' : 260,
+            'height' : 350,
             'margin' : dict(l=1, r=1, t=1, b=1)
         }
     }
@@ -737,7 +738,7 @@ def update_quai_a(donnees):
         'data' : data,
         'layout' : {
             'paper_bgcolor' : '#000000',
-            'height' : 260,
+            'height' : 350,
             'margin' : dict(l=1, r=1, t=1, b=1)
         }
     }
@@ -796,7 +797,7 @@ def update_quai_a(donnees):
         'data' : data,
         'layout' : {
             'paper_bgcolor' : '#000000',
-            'height' : 260,
+            'height' : 350,
             'margin' : dict(l=1, r=1, t=1, b=1)
         }
     }
@@ -855,7 +856,7 @@ def update_quai_a(donnees):
         'data' : data,
         'layout' : {
             'paper_bgcolor' : '#000000',
-            'height' : 260,
+            'height' : 350,
             'margin' : dict(l=1, r=1, t=1, b=1)
         }
     }
@@ -914,7 +915,7 @@ def update_quai_a(donnees):
         'data' : data,
         'layout' : {
             'paper_bgcolor' : '#000000',
-            'height' : 260,
+            'height' : 350,
             'margin' : dict(l=1, r=1, t=1, b=1)
         }
     }
@@ -973,7 +974,7 @@ def update_quai_a(donnees):
         'data' : data,
         'layout' : {
             'paper_bgcolor' : '#000000',
-            'height' : 260,
+            'height' : 350,
             'margin' : dict(l=1, r=1, t=1, b=1)
         }
     }
@@ -1032,7 +1033,7 @@ def update_quai_a(donnees):
         'data' : data,
         'layout' : {
             'paper_bgcolor' : '#000000',
-            'height' : 260,
+            'height' : 350,
             'margin' : dict(l=1, r=1, t=1, b=1)
         }
     }
@@ -1091,7 +1092,7 @@ def update_quai_a(donnees):
         'data' : data,
         'layout' : {
             'paper_bgcolor' : '#000000',
-            'height' : 260,
+            'height' : 350,
             'margin' : dict(l=1, r=1, t=1, b=1)
         }
     }
@@ -1150,7 +1151,7 @@ def update_quai_a(donnees):
         'data' : data,
         'layout' : {
             'paper_bgcolor' : '#000000',
-            'height' : 260,
+            'height' : 350,
             'margin' : dict(l=1, r=1, t=1, b=1)
         }
     }
@@ -1209,7 +1210,7 @@ def update_quai_a(donnees):
         'data' : data,
         'layout' : {
             'paper_bgcolor' : '#000000',
-            'height' : 260,
+            'height' : 350,
             'margin' : dict(l=1, r=1, t=1, b=1)
         }
     }
