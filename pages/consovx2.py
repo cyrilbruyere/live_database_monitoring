@@ -40,7 +40,7 @@ conso_vx2 = """
 layout = html.Div([
     html.Div(id='datetime-consovx2', style = {'color' : '#ECECEC', 'text-align' : 'center', 'font-size' : 28}),
     html.A( id='datetime-consovx2',
-            href='https://qlikview.srv.volvo.com/QvAJAXZfc/opendoc.htm?document=gto-sbi-wms2\outbound%20following%20-%20consolidation%20vx2.qvw&lang=en-US&host=QVS%40Cluster',
+            href='https://qlikview.srv.volvo.com/QvAJAXZfc/opendoc.htm?document=gto-sbi-wms2%5Cconsolidation%20vx2.qvw&lang=en-US&host=QVS%40Cluster',
             target='_blank',
             style = {'color' : '#ECECEC', 'text-align' : 'center', 'font-size' : 28}),
     html.Hr(),

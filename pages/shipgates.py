@@ -49,7 +49,7 @@ colonnes = ['CONSIGNMENT', 'PALLET_ID', 'VOIE', 'STATUS', 'TRAILER', 'GATE', 'DE
 # Définition de l'affichage et intervalle de refresh
 layout = html.Div([
     html.A( id='datetime-shipgates',
-            href='https://qlikview.srv.volvo.com/QvAJAXZfc/opendoc.htm?document=gto-sbi-wms2%5Coutlines.qvw&lang=en-US&host=QVS%40Cluster',
+            href='https://qlikview.srv.volvo.com/QvAJAXZfc/opendoc.htm?document=gto-sbi-wms2%5Cgates.qvw&lang=en-US&host=QVS%40Cluster',
             target='_blank',
             style = {'color' : '#ECECEC', 'text-align' : 'center', 'font-size' : 28}),
     html.Div([
