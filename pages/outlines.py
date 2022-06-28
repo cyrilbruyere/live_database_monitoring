@@ -60,8 +60,8 @@ layout = html.Div([
         html.Div(
             dcc.Checklist(
                     id = 'checklist-outlines',
-                    options = ['VX1', 'DE5', 'PIGO', 'FSP', 'PB', 'AEC', 'REA', 'Autres'],
-                    value = ['PIGO'],
+                    options = ['VX1', 'DE5', 'PIGO', 'FSP', 'PB', 'AEC', 'REA', 'Autres', 'Cycle'],
+                    value = ['Cycle'],
                     inline = True,
                     labelStyle = {'color': '#ECECEC'}), style={'width' : '33%',
                                                                'display' : 'inline-block'}),
@@ -158,7 +158,14 @@ def store_data(n):
               [Input('memory-outlines', 'data'),
               Input('checklist-outlines', 'value')
               ])
-def update_graf_reg(donnees, secteur):
+def update_graf_reg(donnees, option_outlines):
+    # Cycle
+    cycle = ['PIGO', 'FSP', 'PB', 'AEC', 'REA']
+    freq = dt.datetime.now().minute % 5
+    if option_outlines == ['Cycle']:
+        secteur = [cycle[freq]]
+    else:
+        secteur = option_outlines
     # Restriction aux champs utiles
     df = pd.DataFrame.from_dict(donnees)
     # Regrouper les WORK_GROUP avec l'heure mini de consignment
@@ -207,7 +214,7 @@ def update_graf_reg(donnees, secteur):
                        font_color = '#ECECEC',
                        font_size = 18,
                        yaxis = {'categoryorder' : 'category descending'},
-                       # title = 'Régulier',
+                       title = cycle[freq] if option_outlines == ['Cycle'] else '',
                        titlefont_size = 24,
                        height = 700,
                        margin = dict(l=150, r=40, t=35, b=0),
@@ -222,7 +229,14 @@ def update_graf_reg(donnees, secteur):
               [Input('memory-outlines', 'data'),
               Input('checklist-outlines', 'value')
               ])
-def update_summ_reg(donnees, secteur):
+def update_summ_reg(donnees, option_outlines):
+    # Cycle
+    cycle = ['PIGO', 'FSP', 'PB', 'AEC', 'REA']
+    freq = dt.datetime.now().minute % 5
+    if option_outlines == ['Cycle']:
+        secteur = [cycle[freq]]
+    else:
+        secteur = option_outlines
     # Définition des données pour les visuels
     df = pd.DataFrame.from_dict(donnees)
     retard = len(df[(df['ORDER_TYPE']=='Régulier')&(df['SECTEUR'].isin(secteur))&(df['BACKLOG']=='Retard')])
@@ -261,8 +275,15 @@ def update_summ_reg(donnees, secteur):
               [Input('memory-outlines', 'data'),
               Input('checklist-outlines', 'value')
               ])
-def update_graf_urg(donnees, secteur):
+def update_graf_urg(donnees, option_outlines):
     df = pd.DataFrame.from_dict(donnees)
+    # Cycle
+    cycle = ['PIGO', 'FSP', 'PB', 'AEC', 'REA']
+    freq = dt.datetime.now().minute % 5
+    if option_outlines == ['Cycle']:
+        secteur = [cycle[freq]]
+    else:
+        secteur = option_outlines
     # Ajout de l'heure de consignment au work_group
     df['WORK_GROUP_2'] = df['WORK_GROUP'].str[:10] + '-' + df['CONSIGNMENT_TIME']
     df.loc[df['WORK_GROUP'].str.contains('^500'), 'WORK_GROUP_2'] = df['WORK_GROUP'].str[:10]
@@ -304,7 +325,7 @@ def update_graf_urg(donnees, secteur):
                        font_color = '#ECECEC',
                        font_size = 18,
                        yaxis = {'categoryorder' : 'category descending'},
-                       # title = 'Urgent',
+                       title = cycle[freq] if option_outlines == ['Cycle'] else '',
                        titlefont_size = 24,
                        height = 700,
                        margin = dict(l=190, r=50, t=35, b=0),
@@ -319,8 +340,15 @@ def update_graf_urg(donnees, secteur):
               [Input('memory-outlines', 'data'),
               Input('checklist-outlines', 'value')
               ])
-def update_summ_urg(donnees, secteur):
+def update_summ_urg(donnees, option_outlines):
     df = pd.DataFrame.from_dict(donnees)
+    # Cycle
+    cycle = ['PIGO', 'FSP', 'PB', 'AEC', 'REA']
+    freq = dt.datetime.now().minute % 5
+    if option_outlines == ['Cycle']:
+        secteur = [cycle[freq]]
+    else:
+        secteur = option_outlines
     # Définition des données pour les visuels
     retard = len(df[(df['ORDER_TYPE']=='Urgent')&(df['SECTEUR'].isin(secteur))&(df['BACKLOG']=='Retard')])
     jour = len(df[(df['ORDER_TYPE']=='Urgent')&(df['SECTEUR'].isin(secteur))&(df['BACKLOG']=='J')])

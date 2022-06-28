@@ -125,6 +125,7 @@ def store_data(n, secteur):
                      value = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H',
                               'I', 'J', 'K', 'L', 'M', 'N', 'O', 'Y',
                               'G6', 'DISP', 'G6A', 'GCA'])
+    df = df[df['TO_LOC_ID'].isin(['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M' ,'N' ,'O' ,'Y'])]
     df = df.drop(['CONTAINER_ID', 'DSTAMP'], axis = 1)
     df = df.drop_duplicates()
     df['FROM_LOC_ID'] = df['FROM_LOC_ID'].apply(lambda x: x.replace('WT-', ''))
@@ -178,7 +179,7 @@ def update_histo(donnees):
                        xaxis = dict(categoryorder = 'category ascending', tickangle = 0),
                        yaxis = dict(ticks='', showticklabels = False),
                        title = '',
-                       titlefont_size = 24,
+                       titlefont_size = 32,
                        height = 200,
                        margin = dict(l=5, r=5, t=10, b=40))
     return {
