@@ -160,8 +160,8 @@ def store_data(n):
               ])
 def update_graf_reg(donnees, option_outlines):
     # Cycle
-    cycle = ['PIGO', 'FSP', 'PB', 'AEC', 'REA']
-    freq = dt.datetime.now().minute % 5
+    cycle = ['FSP', 'PB', 'REA']
+    freq = dt.datetime.now().minute % 3
     if option_outlines == ['Cycle']:
         secteur = [cycle[freq]]
     else:
@@ -231,8 +231,8 @@ def update_graf_reg(donnees, option_outlines):
               ])
 def update_summ_reg(donnees, option_outlines):
     # Cycle
-    cycle = ['PIGO', 'FSP', 'PB', 'AEC', 'REA']
-    freq = dt.datetime.now().minute % 5
+    cycle = ['FSP', 'PB', 'REA']
+    freq = dt.datetime.now().minute % 3
     if option_outlines == ['Cycle']:
         secteur = [cycle[freq]]
     else:
@@ -278,8 +278,8 @@ def update_summ_reg(donnees, option_outlines):
 def update_graf_urg(donnees, option_outlines):
     df = pd.DataFrame.from_dict(donnees)
     # Cycle
-    cycle = ['PIGO', 'FSP', 'PB', 'AEC', 'REA']
-    freq = dt.datetime.now().minute % 5
+    cycle = ['FSP', 'PB', 'REA']
+    freq = dt.datetime.now().minute % 3
     if option_outlines == ['Cycle']:
         secteur = [cycle[freq]]
     else:
@@ -343,8 +343,8 @@ def update_graf_urg(donnees, option_outlines):
 def update_summ_urg(donnees, option_outlines):
     df = pd.DataFrame.from_dict(donnees)
     # Cycle
-    cycle = ['PIGO', 'FSP', 'PB', 'AEC', 'REA']
-    freq = dt.datetime.now().minute % 5
+    cycle = ['FSP', 'PB', 'REA']
+    freq = dt.datetime.now().minute % 3
     if option_outlines == ['Cycle']:
         secteur = [cycle[freq]]
     else:

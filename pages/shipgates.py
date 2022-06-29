@@ -16,7 +16,7 @@ import re
 # Définition de la requête SQL
 query = """
 SELECT  DISTINCT
-        SUBSTR(mt.consignment, 6, 99) AS CONSIGNMENT,
+        SUBSTR(mt.consignment, 6, 8) AS CONSIGNMENT,
         mt.pallet_id,
         CASE WHEN SUBSTR(mt.from_loc_id, 1, 4) = 'QUAI' THEN SUBSTR(mt.from_loc_id, -1, 1)
              WHEN SUBSTR(mt.from_loc_id, 1, 2) = 'WT' THEN SUBSTR(mt.to_loc_id, -1, 1)
@@ -24,6 +24,7 @@ SELECT  DISTINCT
         CASE WHEN SUBSTR(mt.from_loc_id, 1, 4) = 'QUAI' THEN 'QUAI'
              WHEN SUBSTR(mt.from_loc_id, 1, 6) = 'WT-VX1' THEN 'VX1'
              WHEN SUBSTR(mt.from_loc_id, 1, 8) = 'WT-VX2-P' THEN 'VX2'
+             WHEN SUBSTR(mt.from_loc_id, 1, 10) = 'FLUXT---GL' THEN 'PB'
              END AS STATUS,
         ct.trailer_id AS TRAILER,
         ct.dock_door_id AS GATE,
@@ -144,9 +145,10 @@ def store_data(n):
     df = df.groupby(['CONSIGNMENT', 'STATUS', 'VOIE', 'TRAILER', 'GATE', 'DEPART', 'CAMION', 'DELAI', 'COLOR_TYPE']).count()
     df.reset_index(inplace = True)
     df.loc[df['STATUS']=='QUAI', 'STATUS'] = df['STATUS'] + ' ' + df['DELAI']
+    df['TRAILER'] = df['TRAILER'].str.replace(' ','-')
     return [df.to_dict()]
 
-# Refresh écran Andon PORTE GAUCHE
+# Refresh écran Andon PORTE GAUCHE ##################################### CODE A L'IDENTIQUE DE LA PORTE GAUCHE SAUF FILTRE SUR LA PORTE (paramètre re.findall(r'^\d{1,2}', portes))
 @callback(Output('Andon-shipgates-left', 'figure'),
               [Input('memory-shipgates', 'data'),
               Input('radio-shipgates', 'value')
@@ -190,7 +192,7 @@ def update_graf_left(donnees, portes):
                        title = '',
                        titlefont_size = 24,
                        height = 200,
-                       margin = dict(l=150, r=5, t=35, b=0))
+                       margin = dict(l=110, r=5, t=35, b=0))
     return {
         'data' : data,
         'layout' : layout
@@ -218,14 +220,16 @@ def update_summ_left(donnees, portes):
         table['VX1'] = 0
     if 'VX2' not in table.columns:
         table['VX2'] = 0
+    if 'PB' not in table.columns:
+        table['PB'] = 0
     if 'QUAI J' not in table.columns:
         table['QUAI J'] = 0
     if 'QUAI J+' not in table.columns:
         table['QUAI J+'] = 0
-    table = table[['DEPART', 'TRAILER', 'CONSIGNMENT', 'VOIE', 'VX1', 'VX2', 'QUAI J', 'QUAI J+', 'COLOR_TYPE']]
+    table = table[['DEPART', 'TRAILER', 'CONSIGNMENT', 'VOIE', 'VX1', 'VX2', 'PB', 'QUAI J', 'QUAI J+', 'COLOR_TYPE']]
     table = table.groupby(['DEPART', 'TRAILER', 'CONSIGNMENT', 'VOIE', 'COLOR_TYPE']).sum()
     table.reset_index(inplace = True)
-    table['TOTAL'] = table['VX1'] + table['VX2'] + table['QUAI J'] + table['QUAI J+']
+    table['TOTAL'] = table['VX1'] + table['VX2'] + table['PB'] + table['QUAI J'] + table['QUAI J+']
     table = table[table['TOTAL']!=0]
     table = table.replace(to_replace = [0], value = [''])
     # Définition couleurs d'affichage
@@ -247,6 +251,7 @@ def update_summ_left(donnees, portes):
     voie = table['VOIE'].values
     vx1 = table['VX1'].values
     vx2 = table['VX2'].values
+    pb = table['PB'].values
     quaij = table['QUAI J'].values
     quaijplus = table['QUAI J+'].values
     total = table['TOTAL'].values
@@ -255,7 +260,7 @@ def update_summ_left(donnees, portes):
     font = table['FONT'].values
     retard = table['LATE'].values
     # Définition des colonnes à afficher
-    shown_columns = ['DEPART', 'TRAILER', 'CONSIGNMENT', 'VOIE', 'VX1', 'VX2', '(J)', '(J+)', 'TOTAL']
+    shown_columns = ['DEPART', 'TRAILER', 'CONSIGNMENT', 'VOIE', 'VX1', 'VX2', 'PB', '(J)', '(J+)', 'TOTAL']
     fill_color = []
     font_color = []
     n = len(table)
@@ -279,14 +284,14 @@ def update_summ_left(donnees, portes):
                 fill_color[j][i] = '#363636'
     # Définition du visuel à afficher (figure)
     trace = go.Table(
-                    columnwidth = [20, 35, 45, 15, 15, 15, 15, 15, 15],
-                    header = dict(  values = ['DEPART', 'TRAILER', 'CONSIGNMENT', 'VOIE', 'VX1', 'VX2', '(J)', '(J+)', 'TOTAL'],
-                                    fill = dict(color=['#000000', '#000000', '#000000', '#000000', '#000000', '#000000', '#000000', '#000000', '#000000']),
+                    columnwidth = [20, 35, 45, 15, 15, 15, 15, 15, 15, 15],
+                    header = dict(  values = ['DEPART', 'TRAILER', 'CONSIGNMENT', 'VOIE', 'VX1', 'VX2', 'PB', '(J)', '(J+)', 'TOTAL'],
+                                    fill = dict(color=['#000000', '#000000', '#000000', '#000000', '#000000', '#000000', '#000000', '#000000', '#000000', '#000000']),
                                     line = dict(color='#777777', width=1),
-                                    font = dict(color = '#ECECEC', size = 16),
+                                    font = dict(color = '#ECECEC', size = 14),
                                     align = ['center'],
                                     height = 30),
-                    cells = dict(   values = [depart, trailer, consignment, voie, vx1, vx2, quaij, quaijplus, total],
+                    cells = dict(   values = [depart, trailer, consignment, voie, vx1, vx2, pb, quaij, quaijplus, total],
                                     fill = dict(color=fill_color),
                                     line = dict(color='#777777', width=1),
                                     font = dict(color=font_color, size = 16), # [couleur_retard], 
@@ -299,11 +304,11 @@ def update_summ_left(donnees, portes):
         'layout' : {
             'paper_bgcolor' : '#000000',
             #'height' : 110,
-            'margin' : dict(l=50, r=15, t=40, b=0)
+            'margin' : dict(l=5, r=5, t=40, b=0)
         }
     }
 
-# PORTE DROITE ##################################### CODE A L'IDENTIQUE DE LA PORTE GAUCHE SAUF FILTRE SUR LA PORTE (paramètre re.findall)
+# PORTE DROITE ##################################### CODE A L'IDENTIQUE DE LA PORTE GAUCHE SAUF FILTRE SUR LA PORTE (paramètre re.findall(r'^\d{1,2}', portes))
 @callback(Output('Andon-shipgates-right', 'figure'),
               [Input('memory-shipgates', 'data'),
               Input('radio-shipgates', 'value')
@@ -347,7 +352,7 @@ def update_graf_right(donnees, portes):
                        title = '',
                        titlefont_size = 24,
                        height = 200,
-                       margin = dict(l=150, r=5, t=35, b=0))
+                       margin = dict(l=110, r=5, t=35, b=0))
     return {
         'data' : data,
         'layout' : layout
@@ -375,14 +380,16 @@ def update_summ_right(donnees, portes):
         table['VX1'] = 0
     if 'VX2' not in table.columns:
         table['VX2'] = 0
+    if 'PB' not in table.columns:
+        table['PB'] = 0
     if 'QUAI J' not in table.columns:
         table['QUAI J'] = 0
     if 'QUAI J+' not in table.columns:
         table['QUAI J+'] = 0
-    table = table[['DEPART', 'TRAILER', 'CONSIGNMENT', 'VOIE', 'VX1', 'VX2', 'QUAI J', 'QUAI J+', 'COLOR_TYPE']]
+    table = table[['DEPART', 'TRAILER', 'CONSIGNMENT', 'VOIE', 'VX1', 'VX2', 'PB', 'QUAI J', 'QUAI J+', 'COLOR_TYPE']]
     table = table.groupby(['DEPART', 'TRAILER', 'CONSIGNMENT', 'VOIE', 'COLOR_TYPE']).sum()
     table.reset_index(inplace = True)
-    table['TOTAL'] = table['VX1'] + table['VX2'] + table['QUAI J'] + table['QUAI J+']
+    table['TOTAL'] = table['VX1'] + table['VX2'] + table['PB'] + table['QUAI J'] + table['QUAI J+']
     table = table[table['TOTAL']!=0]
     table = table.replace(to_replace = [0], value = [''])
     # Définition couleurs d'affichage
@@ -404,6 +411,7 @@ def update_summ_right(donnees, portes):
     voie = table['VOIE'].values
     vx1 = table['VX1'].values
     vx2 = table['VX2'].values
+    pb = table['PB'].values
     quaij = table['QUAI J'].values
     quaijplus = table['QUAI J+'].values
     total = table['TOTAL'].values
@@ -412,7 +420,7 @@ def update_summ_right(donnees, portes):
     font = table['FONT'].values
     retard = table['LATE'].values
     # Définition des colonnes à afficher
-    shown_columns = ['DEPART', 'TRAILER', 'CONSIGNMENT', 'VOIE', 'VX1', 'VX2', '(J)', '(J+)', 'TOTAL']
+    shown_columns = ['DEPART', 'TRAILER', 'CONSIGNMENT', 'VOIE', 'VX1', 'VX2', 'PB', '(J)', '(J+)', 'TOTAL']
     fill_color = []
     font_color = []
     n = len(table)
@@ -437,13 +445,13 @@ def update_summ_right(donnees, portes):
     # Définition du visuel à afficher (figure)
     trace = go.Table(
                     columnwidth = [20, 35, 45, 15, 15, 15, 15, 15, 15],
-                    header = dict(  values = ['DEPART', 'TRAILER', 'CONSIGNMENT', 'VOIE', 'VX1', 'VX2', '(J)', '(J+)', 'TOTAL'],
-                                    fill = dict(color=['#000000', '#000000', '#000000', '#000000', '#000000', '#000000', '#000000', '#000000', '#000000']),
+                    header = dict(  values = ['DEPART', 'TRAILER', 'CONSIGNMENT', 'VOIE', 'VX1', 'VX2', 'PB', '(J)', '(J+)', 'TOTAL'],
+                                    fill = dict(color=['#000000', '#000000', '#000000', '#000000', '#000000', '#000000', '#000000', '#000000', '#000000', '#000000']),
                                     line = dict(color='#777777', width=1),
-                                    font = dict(color = '#ECECEC', size = 16),
+                                    font = dict(color = '#ECECEC', size = 14),
                                     align = ['center'],
                                     height = 30),
-                    cells = dict(   values = [depart, trailer, consignment, voie, vx1, vx2, quaij, quaijplus, total],
+                    cells = dict(   values = [depart, trailer, consignment, voie, vx1, vx2, pb, quaij, quaijplus, total],
                                     fill = dict(color=fill_color),
                                     line = dict(color='#777777', width=1),
                                     font = dict(color=font_color, size = 16), # [couleur_retard], 
@@ -456,6 +464,6 @@ def update_summ_right(donnees, portes):
         'layout' : {
             'paper_bgcolor' : '#000000',
             #'height' : 110,
-            'margin' : dict(l=50, r=15, t=40, b=0)
+            'margin' : dict(l=5, r=5, t=40, b=0)
         }
     }
