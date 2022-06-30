@@ -52,7 +52,7 @@ layout = html.Div([
             target='_blank',
             style = {'color' : '#ECECEC', 'text-align' : 'center', 'font-size' : 28}),
     html.Div([
-        html.Div(id='Régulier', children='Régulier', style={'width' : '33%',
+        html.Div(id='Régulier', children='Régulier', style={'width' : '26%',
                                                             'display' : 'inline-block',
                                                             'color' : '#ECECEC',
                                                             'text-align' : 'center',
@@ -60,12 +60,12 @@ layout = html.Div([
         html.Div(
             dcc.RadioItems(
                     id = 'checklist-outlines',
-                    options = ['VX1', 'DE5', 'PIGO', 'FSP', 'PB', 'AEC', 'REA', 'Autres', 'Cycle'],
+                    options = ['VX1', 'DE5', 'PIGO', 'FSP', 'PB', 'AEC', 'REA', 'Secteur VX1', 'Secteur VX2', 'Autres', 'Cycle'],
                     value = 'PIGO',
                     inline = True,
-                    labelStyle = {'color': '#ECECEC'}), style={'width' : '33%',
+                    labelStyle = {'color': '#ECECEC'}), style={'width' : '45%',
                                                                'display' : 'inline-block'}),
-        html.Div(id='Urgent', children='Urgent', style={'width' : '33%',
+        html.Div(id='Urgent', children='Urgent', style={'width' : '26%',
                                                         'display' : 'inline-block',
                                                         'color' : '#ECECEC',
                                                         'text-align' : 'center',
@@ -161,9 +161,15 @@ def store_data(n):
 def update_graf_reg(donnees, option_outlines):
     # Cycle
     cycle = ['FSP', 'PB', 'REA']
+    secteur_vx1 = ['VX1', 'DE5']
+    secteur_vx2 = ['PIGO', 'FSP', 'PB', 'AEC', 'REA']
     freq = dt.datetime.now().minute % 3
     if option_outlines == 'Cycle':
         secteur = [cycle[freq]]
+    elif option_outlines == 'Secteur VX1':
+        secteur = secteur_vx1
+    elif option_outlines == 'Secteur VX2':
+        secteur = secteur_vx2
     else:
         secteur = [option_outlines]
     # Restriction aux champs utiles
@@ -233,9 +239,15 @@ def update_graf_reg(donnees, option_outlines):
 def update_summ_reg(donnees, option_outlines):
     # Cycle
     cycle = ['FSP', 'PB', 'REA']
+    secteur_vx1 = ['VX1', 'DE5']
+    secteur_vx2 = ['PIGO', 'FSP', 'PB', 'AEC', 'REA']
     freq = dt.datetime.now().minute % 3
     if option_outlines == 'Cycle':
         secteur = [cycle[freq]]
+    elif option_outlines == 'Secteur VX1':
+        secteur = secteur_vx1
+    elif option_outlines == 'Secteur VX2':
+        secteur = secteur_vx2
     else:
         secteur = [option_outlines]
     # Définition des données pour les visuels
@@ -280,9 +292,15 @@ def update_graf_urg(donnees, option_outlines):
     df = pd.DataFrame.from_dict(donnees)
     # Cycle
     cycle = ['FSP', 'PB', 'REA']
+    secteur_vx1 = ['VX1', 'DE5']
+    secteur_vx2 = ['PIGO', 'FSP', 'PB', 'AEC', 'REA']
     freq = dt.datetime.now().minute % 3
     if option_outlines == 'Cycle':
         secteur = [cycle[freq]]
+    elif option_outlines == 'Secteur VX1':
+        secteur = secteur_vx1
+    elif option_outlines == 'Secteur VX2':
+        secteur = secteur_vx2
     else:
         secteur = [option_outlines]
     # Ajout de l'heure de consignment au work_group
@@ -346,9 +364,15 @@ def update_summ_urg(donnees, option_outlines):
     df = pd.DataFrame.from_dict(donnees)
     # Cycle
     cycle = ['FSP', 'PB', 'REA']
+    secteur_vx1 = ['VX1', 'DE5']
+    secteur_vx2 = ['PIGO', 'FSP', 'PB', 'AEC', 'REA']
     freq = dt.datetime.now().minute % 3
     if option_outlines == 'Cycle':
         secteur = [cycle[freq]]
+    elif option_outlines == 'Secteur VX1':
+        secteur = secteur_vx1
+    elif option_outlines == 'Secteur VX2':
+        secteur = secteur_vx2
     else:
         secteur = [option_outlines]
     # Définition des données pour les visuels
