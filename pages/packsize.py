@@ -113,20 +113,20 @@ def update_layout(n):
     customer.reset_index(inplace = True)
     customer.rename({'NB_UV' : 'Cust_UV'}, axis = 1, inplace = True)
     #     Calcul de la valeur HOLD
-    hold = df[['DESTINATION', 'TYPE', 'TIME', 'CUSTOMER_ID', 'STATUS', 'NB_UV']]
+    hold = df[['CUTOFF', 'DESTINATION', 'TYPE', 'TIME', 'CUSTOMER_ID', 'STATUS', 'NB_UV']] ## ajout CUTOFF
     hold = pd.merge(hold, customer, how = 'left', left_on =['DESTINATION', 'CUSTOMER_ID'], right_on = ['DESTINATION', 'CUSTOMER_ID'])
     hold.loc[((hold['Cust_UV'] >= 7) & (hold['STATUS']=='Hold'))|(hold['STATUS']!='Hold'), 'NB_UV'] = 0
-    andon_hold = hold[['DESTINATION', 'TYPE', 'TIME', 'NB_UV']]
+    andon_hold = hold[['CUTOFF', 'DESTINATION', 'TYPE', 'TIME', 'NB_UV']] ## ajout CUTOFF
     andon_hold.rename({'NB_UV' : 'HOLD'}, axis = 1, inplace = True)
-    andon_hold = andon_hold.groupby(['TIME', 'DESTINATION', 'TYPE']).sum()
+    andon_hold = andon_hold.groupby(['CUTOFF', 'TIME', 'DESTINATION', 'TYPE']).sum() ## ajout CUTOFF
     andon_hold.reset_index(inplace = True)
     # Calcul du champ spécifique RELEASED
     df['RELEASED'] = 0
     df.loc[((df['LOC_TYPE'].isin(['Tag-FIFO', 'Tag-Operator']))
         & (df['LIST_ID'].str.contains('PRPS') == True)
         & (df['STATUS'].isin(['Released', 'In Progress']))), 'RELEASED'] = df['NB_UV']
-    andon_released = df[['DESTINATION', 'TYPE', 'TIME', 'RELEASED']]
-    andon_released = andon_released.groupby(['TIME', 'DESTINATION', 'TYPE']).sum()
+    andon_released = df[['CUTOFF', 'DESTINATION', 'TYPE', 'TIME', 'RELEASED']] ## ajout CUTOFF
+    andon_released = andon_released.groupby(['CUTOFF', 'TIME', 'DESTINATION', 'TYPE']).sum() ## ajout CUTOFF
     andon_released.reset_index(inplace = True)
     # Calcul des champs colis
     df['ENCOURS'] = ((df['FROM_LOC_ID'] == 'CONTAINER') & ((df['PALLET_ID'].str.contains('PRPS') == True) | (df['PALLET_ID'].str.contains('RPS') == True)) & (df['V_ORIG_WORK_ZONE'].isin(['VX1-RETR', 'VX1-RET+', 'VX1-PREP'])))
@@ -134,21 +134,21 @@ def update_layout(n):
     df['Colis WT'] = ((df['STATUS'] == 'Consol') & (df['WORK_ZONE'] == 'WT-PACKSIZ') & (df['Flag Pallet'] == True))
     df['Colis PLDC'] = ((df['STATUS'] == 'Consol') & (df['WORK_ZONE'] == 'WT-PACKSIZ') & (df['Flag Pallet'] == False))
     df.drop_duplicates(subset=['CONTAINER_ID'], inplace = True)
-    andon_container = df[['DESTINATION', 'TYPE', 'TIME', 'ENCOURS', 'Colis WS', 'Colis WT', 'Colis PLDC', 'CUTOFF']]
-    andon_container = andon_container.groupby(['TIME', 'DESTINATION', 'TYPE', 'CUTOFF']).sum()
+    andon_container = df[['CUTOFF', 'DESTINATION', 'TYPE', 'TIME', 'ENCOURS', 'Colis WS', 'Colis WT', 'Colis PLDC']] ## CUTOFF de fin à début
+    andon_container = andon_container.groupby(['CUTOFF', 'TIME', 'DESTINATION', 'TYPE']).sum() ## CUTOFF de fin à début
     andon_container.reset_index(inplace = True)   
     # Calcul du champ spécifique : nombre de PLDC
-    pallet = df[['TIME', 'DESTINATION', 'TYPE', 'WORK_ZONE', 'PALLET_ID']]
+    pallet = df[['CUTOFF', 'TIME', 'DESTINATION', 'TYPE', 'WORK_ZONE', 'PALLET_ID']] ## ajout CUTOFF
     pallet.drop_duplicates(inplace = True)
     pallet['PLDC'] = ((pallet['PALLET_ID'].str[:4] == 'PLDC') & (pallet['WORK_ZONE'] == 'WT-PACKSIZ'))
     pallet.drop(['WORK_ZONE', 'PALLET_ID'], axis = 1, inplace = True)
     pallet.replace(to_replace = [True, False], value = [1, 0], inplace = True)
-    andon_pallet = pallet.groupby(['TIME', 'DESTINATION', 'TYPE']).sum()
+    andon_pallet = pallet.groupby(['CUTOFF', 'TIME', 'DESTINATION', 'TYPE']).sum() ## ajout CUTOFF
     andon_pallet.reset_index(inplace = True)
     # Compilation des champs à afficher
-    andon = pd.merge(andon_hold, andon_container, how='outer', left_on=['TIME', 'DESTINATION', 'TYPE'], right_on=['TIME', 'DESTINATION', 'TYPE'])
-    andon = pd.merge(andon, andon_released, how='outer', left_on=['TIME', 'DESTINATION', 'TYPE'], right_on=['TIME', 'DESTINATION', 'TYPE'])
-    andon = pd.merge(andon, andon_pallet, how='left', left_on=['TIME', 'DESTINATION', 'TYPE'], right_on=['TIME', 'DESTINATION', 'TYPE'])
+    andon = pd.merge(andon_hold, andon_container, how='outer', left_on=['CUTOFF', 'TIME', 'DESTINATION', 'TYPE'], right_on=['CUTOFF', 'TIME', 'DESTINATION', 'TYPE']) ## ajout CUTOFF
+    andon = pd.merge(andon, andon_released, how='outer', left_on=['CUTOFF', 'TIME', 'DESTINATION', 'TYPE'], right_on=['CUTOFF', 'TIME', 'DESTINATION', 'TYPE']) ## ajout CUTOFF
+    andon = pd.merge(andon, andon_pallet, how='left', left_on=['CUTOFF', 'TIME', 'DESTINATION', 'TYPE'], right_on=['CUTOFF', 'TIME', 'DESTINATION', 'TYPE']) ## ajout CUTOFF
     andon[['ENCOURS', 'Colis WS', 'Colis WT', 'Colis PLDC', 'PLDC']] = andon[['ENCOURS', 'Colis WS', 'Colis WT', 'Colis PLDC', 'PLDC']].fillna(0)
     andon['CUTOFF'] = andon['CUTOFF'].fillna('0000')
     andon[['HOLD', 'RELEASED', 'ENCOURS', 'Colis WS', 'Colis WT', 'Colis PLDC', 'PLDC']] = andon[['HOLD', 'RELEASED', 'ENCOURS', 'Colis WS', 'Colis WT', 'Colis PLDC', 'PLDC']].astype(int)

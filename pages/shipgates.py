@@ -40,7 +40,7 @@ WHERE mt.site_id = 'LDC'
     AND ct.site_id = 'LDC'
     AND l.loc_type = 'ShipDock'
     AND mt.client_id = 'VOLVO'
-    AND (SUBSTR(mt.from_loc_id, 1, 4) = 'QUAI' OR mt.from_loc_id = 'WT-VX1' OR mt.from_loc_id = 'WT-VX2-P')
+    AND (SUBSTR(mt.from_loc_id, 1, 4) = 'QUAI' OR mt.from_loc_id = 'WT-VX1' OR mt.from_loc_id = 'WT-VX2-P' OR mt.from_loc_id = 'FLUXT---GL')
     AND mt.task_type ='T'
 """
 
@@ -142,6 +142,7 @@ def store_data(n):
     df.loc[df['HORAIRE'] < maintenant, 'DELAI'] = 'J+'
     # Calcul du nombre de palettes
     df = df.drop(['DSTAMP', 'HORAIRE', 'DATES'], axis = 1)
+    df['VOIE'] = df['VOIE'].fillna('-')
     df = df.groupby(['CONSIGNMENT', 'STATUS', 'VOIE', 'TRAILER', 'GATE', 'DEPART', 'CAMION', 'DELAI', 'COLOR_TYPE']).count()
     df.reset_index(inplace = True)
     df.loc[df['STATUS']=='QUAI', 'STATUS'] = df['STATUS'] + ' ' + df['DELAI']
@@ -192,7 +193,7 @@ def update_graf_left(donnees, portes):
                        title = '',
                        titlefont_size = 24,
                        height = 200,
-                       margin = dict(l=110, r=5, t=35, b=0))
+                       margin = dict(l=125, r=5, t=35, b=0))
     return {
         'data' : data,
         'layout' : layout
@@ -284,8 +285,8 @@ def update_summ_left(donnees, portes):
                 fill_color[j][i] = '#363636'
     # Définition du visuel à afficher (figure)
     trace = go.Table(
-                    columnwidth = [20, 35, 45, 15, 15, 15, 15, 15, 15, 15],
-                    header = dict(  values = ['DEPART', 'TRAILER', 'CONSIGNMENT', 'VOIE', 'VX1', 'VX2', 'PB', '(J)', '(J+)', 'TOTAL'],
+                    columnwidth = [25, 40, 50, 15, 15, 15, 15, 15, 15, 15],
+                    header = dict(  values = ['Départ', 'Trailer', 'Consignment', 'Voie', 'VX1', 'VX2', 'PB', 'J', 'J+', 'Total'],
                                     fill = dict(color=['#000000', '#000000', '#000000', '#000000', '#000000', '#000000', '#000000', '#000000', '#000000', '#000000']),
                                     line = dict(color='#777777', width=1),
                                     font = dict(color = '#ECECEC', size = 14),
@@ -352,7 +353,7 @@ def update_graf_right(donnees, portes):
                        title = '',
                        titlefont_size = 24,
                        height = 200,
-                       margin = dict(l=110, r=5, t=35, b=0))
+                       margin = dict(l=125, r=5, t=35, b=0))
     return {
         'data' : data,
         'layout' : layout
@@ -444,8 +445,8 @@ def update_summ_right(donnees, portes):
                 fill_color[j][i] = '#363636'
     # Définition du visuel à afficher (figure)
     trace = go.Table(
-                    columnwidth = [20, 35, 45, 15, 15, 15, 15, 15, 15],
-                    header = dict(  values = ['DEPART', 'TRAILER', 'CONSIGNMENT', 'VOIE', 'VX1', 'VX2', 'PB', '(J)', '(J+)', 'TOTAL'],
+                    columnwidth = [25, 40, 50, 15, 15, 15, 15, 15, 15],
+                    header = dict(  values = ['Départ', 'Trailer', 'Consignment', 'Voie', 'VX1', 'VX2', 'PB', 'J', 'J+', 'Total'],
                                     fill = dict(color=['#000000', '#000000', '#000000', '#000000', '#000000', '#000000', '#000000', '#000000', '#000000', '#000000']),
                                     line = dict(color='#777777', width=1),
                                     font = dict(color = '#ECECEC', size = 14),
